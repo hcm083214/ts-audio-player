@@ -24,23 +24,8 @@ export function compileComponent(component: {
     return component
   }
 
-  console.log('🔧 编译组件:', component.constructor?.name || 'Anonymous', '有 components:', !!component.components)
-  if (component.components) {
-    console.log('📦 可用组件:', Object.keys(component.components).join(', '))
-    // 🔍 检查模板中是否包含 IconComponent 标签
-    if (component.components.IconComponent || component.components.iconcomponent) {
-      const hasIconComponent = component.template.includes('IconComponent') || component.template.includes('iconcomponent')
-      console.log('🔎 模板中是否包含 IconComponent 标签:', hasIconComponent)
-      if (hasIconComponent) {
-        console.log('📝 模板内容预览:', component.template.substring(0, 200) + '...')
-      }
-    }
-  }
-
   // 创建运行时编译器
   const renderFunction = createRuntimeCompiler(component.template, component.components)
-
-  console.log('✅ 组件编译完成:', component.constructor?.name || 'Anonymous')
 
   // 返回带有 render 函数的组件
   return {
@@ -66,15 +51,8 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
       // 匹配 <ComponentName ... /> 或 <component-name ... />
       const selfClosingRegex = new RegExp(`<(${compName})([^>]*)\\s*/>`, 'gi')
       processedTemplate = processedTemplate.replace(selfClosingRegex, `<$1$2></$1>`)
-      
-      console.log(`🔧 转换自闭合标签：${compName}`, {
-        before: template.match(new RegExp(`<${compName}[^>]*\\s*/>`, 'gi'))?.[0],
-        after: processedTemplate.match(new RegExp(`<${compName}[^>]*></${compName}>`, 'gi'))?.[0]
-      })
     })
   }
-  
-  console.log('📝 预处理后的模板:', processedTemplate.substring(0, 200) + '...')
 
   // 这里需要一个完整的 HTML 解析器，为了简化，我们使用浏览器原生 API
   const parser = new DOMParser()
@@ -86,18 +64,6 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
   if (!rootElement) {
     throw new Error('Failed to parse template')
   }
-
-  // 🔍 关键调试：检查 DOMParser 解析结果
-  console.log('🔍 DOMParser 解析完成:', {
-    rootTagName: rootElement.tagName,
-    childNodesCount: rootElement.childNodes.length,
-    childNodes: Array.from(rootElement.childNodes).map(child => ({
-      nodeName: child.nodeName,
-      nodeType: child.nodeType,
-      tagName: child.nodeType === Node.ELEMENT_NODE ? (child as Element).tagName : 'N/A'
-    }))
-  })
-
 
   // 如果 rootElement 只有一个 fragment 子节点，我们需要遍历 fragment 的子节点
   const actualRoot = rootElement.firstElementChild?.tagName.toLowerCase() === 'fragment'
@@ -142,14 +108,8 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
         const tagName = el.tagName.toLowerCase()
         const originalTagName = el.tagName
 
-        // 🔍 关键调试：打印所有解析出的标签
-        console.log('🔍 buildVNode - 标签:', originalTagName, '属性:', Array.from(el.attributes).map(a => `${a.name}="${a.value}"`).join(', '))
-
         // 🔍 修复：不要通过首字母大写判断组件，而是通过是否在 components 映射中
         // 由于 DOMParser 会将所有标签名转为大写，我们需要尝试多种变体来匹配组件
-        
-        console.log('🔍 组件查找开始 - originalTagName:', originalTagName, 'tagName:', tagName)
-        console.log('🧩 components 对象:', components ? Object.keys(components).join(', ') : 'undefined')
         
         // 🔥 关键策略：直接遍历 components 对象的键名，看是否有匹配的
         // 因为 DOMParser 会将标签名转大写，所以我们要做不区分大小写的比较
@@ -162,28 +122,16 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
             if (key.toUpperCase() === originalTagName) {
               foundComponent = value
               matchedVariant = key
-              console.log(`✅ 找到组件 '${key}' (匹配大写：${originalTagName}) ->`, foundComponent.constructor?.name || typeof foundComponent)
               break
             }
           }
         }
-        
-        if (!foundComponent) {
-          console.log(`❌ 未找到与 ${originalTagName} 匹配的组件`)
-        }
       
         const isKnownComponent = !!foundComponent
-      
-        console.log('🔍 检查标签:', originalTagName, '是否已知组件:', isKnownComponent, '有 components:', !!components)
       
         if (isKnownComponent && foundComponent) {
           // 使用找到的组件
           const component = foundComponent
-        
-          console.log('🧩 组件查找 - originalTagName:', originalTagName, 'tagName:', tagName)
-          console.log('🧩 可用组件列表:', components ? Object.keys(components).join(', ') : 'N/A')
-          console.log('🧩 找到组件:', !!component)
-          console.log('🧩 组件属性详情:', Array.from(el.attributes).map(attr => `${attr.name}: ${attr.value}`).join(', '))
           
           // ✅ 找到组件，立即构建并返回组件 VNode
             // 收集组件属性
@@ -230,13 +178,6 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
                   componentProps[name] = interpolatedValue
                 }
               }
-            })
-            
-            console.log('✅ 组件 Props 收集完成:', componentProps)
-            console.log('🎯 组件 VNode 即将返回:', {
-              componentName: component.constructor?.name || 'Anonymous',
-              props: componentProps,
-              hasName: !!componentProps.name
             })
             
             return {
@@ -341,12 +282,6 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
         // 收集属性
         const props: Record<string, any> = {}
         
-        // 🔥 关键调试：在开始收集前打印
-        if (componentType !== tagName) {
-          console.log('🎭 检测到组件标签:', tagName, '完整属性列表:', Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).join(', '))
-          console.log('🔍 组件对象:', componentType.constructor?.name || typeof componentType)
-        }
-        
         // 普通 HTML 元素处理逻辑保持不变...
         const elementProps: Record<string, any> = {}
         
@@ -422,29 +357,9 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
     // 处理根元素的所有子节点
     const children: any[] = []
     
-    // 🔍 关键调试：打印所有子节点信息
-    console.log('🔍 开始处理子节点，总数:', actualRoot.childNodes.length)
     Array.from(actualRoot.childNodes).forEach((child, index) => {
-      console.log(`  子节点 ${index}:`, {
-        nodeName: child.nodeName,
-        nodeType: child.nodeType,
-        tagName: child.nodeType === Node.ELEMENT_NODE ? (child as Element).tagName : 'N/A',
-        attributes: child.nodeType === Node.ELEMENT_NODE ? Array.from((child as Element).attributes).map(a => a.name).join(', ') : 'N/A'
-      })
-    })
-    
-    Array.from(actualRoot.childNodes).forEach((child, index) => {
-
       const vnode = buildVNode(child)
       if (vnode) {
-        // 🔥 关键调试：检查组件 VNode 的 props
-        if (vnode.type && typeof vnode.type === 'object' && 'setup' in vnode.type) {
-          console.log('✅ 组件 VNode 创建完成:', {
-            componentName: vnode.type.constructor?.name || 'Anonymous',
-            props: vnode.props,
-            hasName: !!vnode.props?.name
-          })
-        }
         children.push(vnode)
       } else {
         console.warn(`跳过子节点 ${index}:`, child.nodeName)

@@ -2,9 +2,8 @@ import { compileComponent } from '../core/template-compiler'
 import IconComponent from './IconComponent'
 
 const HeaderComponent = {
-    components: { 
-      'IconComponent': IconComponent,
-      'iconcomponent': IconComponent  // 兼容小写情况
+    components: {
+        'IconComponent': IconComponent,
     },
     template: `
         <!-- 顶部导航栏 -->

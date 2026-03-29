@@ -6,7 +6,6 @@ const IconComponent = {
     // props 可能是响应式代理对象，需要安全地访问
     const getName = () => {
       try {
-        console.log("🚀 ~ getName ~ props?.name:", props?.iconName)
         return props?.name || ''
       } catch (e) {
         console.error('Failed to access props.name:', e)
@@ -29,7 +28,6 @@ const IconComponent = {
       :class="className"
       class="inline-block"
     >
-      {{name}}
       <use :xlink:href="name"></use>
     </svg>
   `
