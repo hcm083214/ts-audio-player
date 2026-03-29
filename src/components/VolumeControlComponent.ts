@@ -11,7 +11,7 @@ const VolumeControlComponent = {
     <div class="mt-8 flex items-center space-x-4">
       <!-- 音量图标 -->
       <svg width="20" height="20" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
-        <use xlink:href="#icon-volume"></use>
+        <use xlink:href="#icon-volume" width="100%" height="100%"></use>
       </svg>
       
       <!-- 音量进度条 -->

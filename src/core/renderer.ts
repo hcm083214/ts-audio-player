@@ -83,7 +83,15 @@ function mount(vnode: VNode, container: Element) {
   }
 
   // 元素节点
-  const element = document.createElement(vnode.type as string)
+  let element: Element
+  if (vnode.type === 'svg') {
+    // 🔥 关键修复：SVG 元素必须使用 createElementNS 创建
+    element = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  } else if (vnode.type === 'use') {
+    element = document.createElementNS('http://www.w3.org/2000/svg', 'use')
+  } else {
+    element = document.createElement(vnode.type as string)
+  }
   vnode.el = element
 
   // 设置属性
@@ -262,7 +270,13 @@ function patchProp(el: Element, key: string, oldValue: any, newValue: any) {
       el.addEventListener(eventName, newValue)
     }
   } else if (key === 'className') {
-    el.className = newValue || ''
+    // 🔥 关键修复：SVG 元素的 className 是只读的，需要使用 setAttribute
+    const namespaceURI = (el as SVGElement).namespaceURI
+    if (namespaceURI === 'http://www.w3.org/2000/svg') {
+      el.setAttributeNS('http://www.w3.org/2000/svg', 'class', newValue || '')
+    } else {
+      el.className = newValue || ''
+    }
   } else if (key === 'style') {
     if (typeof newValue === 'string') {
       (el as HTMLElement).style.cssText = newValue
@@ -281,7 +295,9 @@ function patchProp(el: Element, key: string, oldValue: any, newValue: any) {
     if (newValue == null || newValue === false) {
       el.removeAttribute(key)
     } else {
-      // 处理命名空间属性（如 xlink:href）
+      // 🔥 关键修复：SVG 元素必须区分命名空间
+      const namespaceURI = (el as SVGElement).namespaceURI
+      
       if (key.includes(':')) {
         const [prefix, localName] = key.split(':')
         
@@ -292,13 +308,30 @@ function patchProp(el: Element, key: string, oldValue: any, newValue: any) {
         } else if (prefix === 'xml') {
           el.setAttributeNS('http://www.w3.org/XML/1998/namespace', localName, newValue)
         } else {
-          el.setAttribute(key, newValue)
+          // 其他命名空间属性
+          if (namespaceURI) {
+            el.setAttributeNS(namespaceURI, key, newValue)
+          } else {
+            el.setAttribute(key, newValue)
+          }
         }
       } else {
-        el.setAttribute(key, newValue)
+        // 🔥 关键修复：对于 SVG 元素，width 和 height 使用 setAttribute，其他属性使用 setAttributeNS
+        if (namespaceURI === 'http://www.w3.org/2000/svg') {
+          if (key === 'width' || key === 'height') {
+            // SVG 的基本属性使用 setAttribute
+            el.setAttribute(key, newValue)
+          } else {
+            // 其他 SVG 属性使用 setAttributeNS
+            el.setAttributeNS('http://www.w3.org/2000/svg', key, newValue)
+          }
+        } else {
+          el.setAttribute(key, newValue)
+        }
       }
     }
   }
 }
 
-export { h, render, mount, patch, Fragment }
+// 导出渲染器
+export { h, Fragment, render, mount, patch }

@@ -32,7 +32,7 @@ const SongListComponent = {
         </div>
         <div class="text-gray-400">
           <svg width="20" height="20" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-play"></use>
+            <use xlink:href="#icon-play" width="100%" height="100%"></use>
           </svg>
         </div>
       </div>

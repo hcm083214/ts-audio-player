@@ -16,7 +16,7 @@ const HeaderComponent = {
                             class="w-64 h-10 pl-10 pr-4 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
                         <svg width="16" height="16" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 inline-block" style="display: inline-block;">
-                            <use xlink:href="#icon-search"></use>
+                            <use xlink:href="#icon-search" width="100%" height="100%"></use>
                         </svg>
                     </div>
                     <button class="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary/90">

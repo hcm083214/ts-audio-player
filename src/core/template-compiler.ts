@@ -276,19 +276,91 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
           }
         }
 
-        // 检查是否为注册的组件
-        let componentType = tagName
-        if (components && components[tagName]) {
-          componentType = components[tagName]
+        // 🔥 关键修复：SVG 元素需要使用 createElementNS 创建
+        if (tagName === 'svg') {
+          const namespace = 'http://www.w3.org/2000/svg'
+          const element = document.createElementNS(namespace, 'svg')
+          
+          const svgProps: Record<string, any> = {}
+          
+          // 收集属性
+          Array.from(el.attributes).forEach(attr => {
+            const name = attr.name
+            const value = attr.value
+            
+            // 处理绑定属性 :src, :key 等
+            if (name.startsWith(':')) {
+              const propName = name.slice(1)
+              const propValue = evaluateExpression(value, context)
+              if (propName !== 'key') {
+                svgProps[propName] = propValue
+              }
+            }
+            // 处理事件 @click 等
+            else if (name.startsWith('@')) {
+              const eventName = name.slice(1)
+              const handlerName = value
+              if (context[handlerName]) {
+                svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
+              }
+            }
+            // 处理 v-model (虽然 SVG 少见，但保持一致性)
+            else if (name === 'v-model') {
+              const modelName = value
+              svgProps.value = context[modelName]
+              svgProps.onInput = (e: any) => {
+                context[modelName] = e.target.value
+              }
+            }
+            // 普通属性 - 处理命名空间
+            else {
+              // 🔥 关键修复：width、height、style 等静态属性不要插值，直接设置到元素上并传递给虚拟 DOM
+              if (name === 'width' || name === 'height') {
+                // 🔥 关键修复：SVG 的 width 和 height 使用 setAttribute 而不是 setAttributeNS
+                element.setAttribute(name, value)
+                svgProps[name] = value  // 🔥 关键：添加到 props 中传递给虚拟 DOM
+              } else if (name === 'style') {
+                // style 属性直接设置到元素
+                element.setAttribute('style', value)
+                svgProps.style = value
+              } else if (name === 'class') {
+                element.setAttribute('class', value)
+                svgProps.className = value
+              } else if (name.includes(':')) {
+                const [prefix, localName] = name.split(':')
+                if (prefix === 'xlink') {
+                  element.setAttributeNS('http://www.w3.org/1999/xlink', localName, value)
+                  svgProps[name] = value  // 🔥 关键：添加到 props 中
+                } else if (prefix === 'xmlns') {
+                  element.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, value)
+                  svgProps[name] = value
+                } else {
+                  element.setAttributeNS(namespace, localName, value)
+                  svgProps[name] = value
+                }
+              } else {
+                element.setAttributeNS(namespace, name, value)
+                svgProps[name] = value
+              }
+            }
+          })
+
+          // 处理子节点
+          const children: any[] = []
+          Array.from(el.childNodes).forEach(child => {
+            const vnode = buildVNode(child)
+            if (vnode) children.push(vnode)
+          })
+
+          return {
+            type: tagName,
+            props: svgProps,
+            children,
+            el: element
+          }
         }
 
-        // 收集属性
-        const props: Record<string, any> = {}
-        
-        // 普通 HTML 元素处理逻辑保持不变...
-        const elementProps: Record<string, any> = {}
-        
-        // 检查是否有 v-if 指令
+        // 检查是否有 v-if 指令 (通用逻辑)
         const vIfAttr = Array.from(el.attributes).find(attr => attr.name === 'v-if')
         if (vIfAttr) {
           const conditionExpr = vIfAttr.value
@@ -299,6 +371,109 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
             return null
           }
         }
+
+        // 处理 SVG 元素
+        if (isSvgChild(el)) {
+          console.log('🎨 处理 SVG 子元素:', tagName)
+          const namespace = 'http://www.w3.org/2000/svg'
+          const element = document.createElementNS(namespace, tagName)
+          
+          const svgProps: Record<string, any> = {}
+          
+          // 收集属性
+          Array.from(el.attributes).forEach(attr => {
+            const name = attr.name
+            const value = attr.value
+            
+            console.log('🔵 SVG 子元素属性:', { name, value, tag: tagName })
+            
+            // 处理绑定属性 :src, :key 等
+            if (name.startsWith(':')) {
+              const propName = name.slice(1)
+              const propValue = evaluateExpression(value, context)
+              if (propName !== 'key') {
+                svgProps[propName] = propValue
+              }
+            }
+            // 处理事件 @click 等
+            else if (name.startsWith('@')) {
+              const eventName = name.slice(1)
+              const handlerName = value
+              if (context[handlerName]) {
+                svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
+              }
+            }
+            // 处理 v-model (虽然 SVG 少见，但保持一致性)
+            else if (name === 'v-model') {
+              const modelName = value
+              svgProps.value = context[modelName]
+              svgProps.onInput = (e: any) => {
+                context[modelName] = e.target.value
+              }
+            }
+            // 普通属性 - 处理命名空间
+            else {
+              // 🔥 关键修复：width、height、style 等静态属性不要插值，直接设置到元素上并传递给虚拟 DOM
+              if (name === 'width' || name === 'height') {
+                // 🔥 关键修复：SVG 的 width 和 height 使用 setAttribute 而不是 setAttributeNS
+                element.setAttribute(name, value)
+                console.log('✅ 设置 SVG 子元素属性:', { name, value, method: 'setAttribute', tag: tagName })
+                svgProps[name] = value  // 🔥 关键：添加到 props 中传递给虚拟 DOM
+              } else if (name === 'style') {
+                // style 属性直接设置到元素
+                element.setAttribute('style', value)
+                svgProps.style = value
+              } else if (name === 'class') {
+                element.setAttribute('class', value)
+                svgProps.className = value
+              } else if (name.includes(':')) {
+                const [prefix, localName] = name.split(':')
+                if (prefix === 'xlink') {
+                  element.setAttributeNS('http://www.w3.org/1999/xlink', localName, value)
+                  svgProps[name] = value  // 🔥 关键：添加到 props 中
+                  console.log('✅ 设置 xlink 属性:', { name, value, localName, tag: tagName })
+                } else if (prefix === 'xmlns') {
+                  element.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, value)
+                  svgProps[name] = value
+                } else {
+                  element.setAttributeNS(namespace, localName, value)
+                  svgProps[name] = value
+                }
+              } else {
+                element.setAttributeNS(namespace, name, value)
+                svgProps[name] = value
+              }
+            }
+          })
+
+          // 处理子节点
+          const children: any[] = []
+          console.log('🔍 SVG 子元素节点数量:', el.childNodes.length)
+          Array.from(el.childNodes).forEach((child, index) => {
+            console.log(`📦 SVG 子节点 ${index}:`, { 
+              nodeType: child.nodeType, 
+              nodeName: child.nodeName,
+              isElement: child.nodeType === Node.ELEMENT_NODE
+            })
+            const vnode = buildVNode(child)
+            if (vnode) {
+              console.log(`✅ SVG VNode ${index}:`, vnode)
+              children.push(vnode)
+            }
+          })
+
+          console.log('🎯 完成 SVG 子元素构建:', { tag: tagName, props: svgProps, childrenCount: children.length })
+
+          return {
+            type: tagName,
+            props: svgProps,
+            children,
+            el: element
+          }
+        }
+
+        // 普通 HTML 元素处理逻辑
+        const elementProps: Record<string, any> = {}
         
         // 收集普通 HTML 元素的属性
         Array.from(el.attributes).forEach(attr => {
@@ -310,7 +485,7 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
             const propName = name.slice(1)
             const propValue = evaluateExpression(value, context)
             
-            if (propName !== 'key') {
+            if (propName !== 'key') { // key 不传递给真实 DOM
               elementProps[propName] = propValue
             }
           }
@@ -332,14 +507,19 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
           }
           // 普通属性
           else {
-            const interpolatedValue = interpolate(value, context)
-            if (name === 'class') {
-              elementProps.className = interpolatedValue
+            // 🔥 关键修复：width、height、style 等静态属性不要插值
+            if (name === 'width' || name === 'height') {
+              elementProps[name] = value
             } else if (name === 'style') {
               // style 属性直接传递字符串
               elementProps.style = value
             } else {
-              elementProps[name] = interpolatedValue
+              const interpolatedValue = interpolate(value, context)
+              if (name === 'class') {
+                elementProps.className = interpolatedValue
+              } else {
+                elementProps[name] = interpolatedValue
+              }
             }
           }
         })
@@ -359,6 +539,35 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
       }
 
       return null
+    }
+
+    /**
+     * 判断元素是否应该作为 SVG 子元素处理
+     * 简单的启发式方法：如果父级是 svg 标签，或者自身是常见的 SVG 标签
+     */
+    function isSvgChild(node: Element): boolean {
+      const svgTags = [
+        'circle', 'rect', 'path', 'line', 'polyline', 'polygon', 
+        'text', 'tspan', 'g', 'defs', 'use', 'image', 'pattern', 
+        'clipPath', 'mask', 'linearGradient', 'radialGradient', 'stop'
+      ]
+      // 检查自身是否是已知 SVG 标签
+      const nodeTagName = node.tagName.toLowerCase()
+      if (svgTags.includes(nodeTagName)) {
+        return true
+      }
+      // 检查父节点是否是 svg (通过遍历父节点直到 root 或找到 svg)
+      // 由于我们是递归构建，且 DOMParser 已经构建了树，我们可以检查 parentNode
+      let parent = node.parentNode
+      while (parent) {
+        if (parent.nodeType === Node.ELEMENT_NODE) {
+          if ((parent as Element).tagName.toLowerCase() === 'svg') {
+            return true
+          }
+        }
+        parent = parent.parentNode
+      }
+      return false
     }
 
     // 处理根元素的所有子节点

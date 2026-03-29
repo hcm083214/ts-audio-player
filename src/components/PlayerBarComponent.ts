@@ -22,18 +22,18 @@ const PlayerBarComponent = {
         </div>
         <div class="flex items-center space-x-4">
           <svg width="24" height="24" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-skip-previous"></use>
+            <use xlink:href="#icon-skip-previous" width="100%" height="100%"></use>
           </svg>
           <svg width="28" height="28" class="cursor-pointer text-primary inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-play-small"></use>
+            <use xlink:href="#icon-play-small" width="100%" height="100%"></use>
           </svg>
           <svg width="24" height="24" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-skip-next"></use>
+            <use xlink:href="#icon-skip-next" width="100%" height="100%"></use>
           </svg>
         </div>
         <div class="flex items-center space-x-4">
           <svg width="20" height="20" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-expand"></use>
+            <use xlink:href="#icon-expand" width="100%" height="100%"></use>
           </svg>
           <a href="#/player" class="text-primary hover:underline">展开</a>
         </div>
