@@ -5,12 +5,19 @@ class Dep {
   depend() {
     if (activeEffect) {
       this.subscribers.add(activeEffect)
+      console.log('🔵 [Dep.depend] 添加订阅者，当前订阅数:', this.subscribers.size, 'activeEffect:', activeEffect === this.subscribers.values().next().value)
     }
   }
 
   notify() {
+    console.log('🔵 [Dep.notify] 开始通知，订阅数:', this.subscribers.size)
+    // 🔥 关键修复：使用 queueMicrotask 异步调度，防止无限递归
     this.subscribers.forEach(effect => {
-      effect()
+      console.log('🔵 [Dep.notify] 准备执行 effect')
+      queueMicrotask(() => {
+        console.log('🔵 [Dep.notify] microtask 中执行 effect')
+        effect()
+      })
     })
   }
 }
@@ -30,12 +37,14 @@ function track(target: object, key: string | symbol) {
 
   let depsMap = targetMap.get(target)
   if (!depsMap) {
-    targetMap.set(target, (depsMap = new Map()))
+    depsMap = new Map()
+    targetMap.set(target, depsMap)
   }
 
   let dep = depsMap.get(key)
   if (!dep) {
-    depsMap.set(key, (dep = new Dep()))
+    dep = new Dep()
+    depsMap.set(key, dep)
   }
 
   dep.depend()
@@ -82,25 +91,25 @@ function reactive<T extends object>(target: T): T {
   })
 }
 
-// Ref 类型
+// RefImpl 实现
 class RefImpl<T> {
   private _value: T
-  private dep: Dep = new Dep()
+  private dep?: Dep
 
   constructor(value: T) {
     this._value = value
+    this.dep = new Dep()
   }
 
-  get value() {
+  get value(): T {
     track(this, 'value')
     return this._value
   }
 
   set value(newValue: T) {
-    if (this._value !== newValue) {
-      this._value = newValue
-      trigger(this, 'value')
-    }
+    const oldValue = this._value
+    this._value = newValue
+    trigger(this, 'value')
   }
 }
 
@@ -163,5 +172,4 @@ function onMounted(fn: () => void) {
   // 立即执行，简化实现
   setTimeout(fn, 0)
 }
-
 export { reactive, ref, effect, computed, onMounted }

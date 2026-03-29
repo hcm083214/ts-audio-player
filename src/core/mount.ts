@@ -8,8 +8,15 @@ import { mountComponent } from './mountComponent'
  * @param container 容器元素
  */
 export function mount(vnode: VNode, container: Element): void {
+  if (!vnode) {
+    return
+  }
+  
   if (typeof vnode.type === 'object' && 'setup' in vnode.type) {
-    // 组件挂载
+    if (vnode.component) {
+      return
+    }
+    
     mountComponent(vnode, container)
     return
   }

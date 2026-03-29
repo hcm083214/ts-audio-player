@@ -24,15 +24,24 @@ export function interpolate(str: string, context: any): string {
  */
 export function evaluateExpression(expr: string, context: any): any {
   try {
-    // 安全检查：只允许访问上下文中的属性
-    // 使用 Function 构造函数创建沙箱环境
+    // 获取所有键并创建局部变量声明
     const keys = Object.keys(context)
-    const values = Object.values(context)
-
-    // 创建函数：return context[expr]
-    // 例如：return playlists.map(artist => artist.name)
+    
+    // 在 map 中访问 context[key] 时，如果是 RefImpl 则立即访问 .value 触发 getter
+    const values = keys.map(key => {
+      const value = context[key]
+      // 如果是 RefImpl，立即访问 .value 触发 getter 进行依赖收集
+      if (value && typeof value === 'object' && '_value' in value) {
+        return value.value  // 这会触发 RefImpl.get！
+      }
+      return value
+    })
+    
+    // 创建函数：function(playlists, topSongs, topArtists, loading) { return (expr) }
     const fn = new Function(...keys, `"use strict"; return (${expr})`)
-    return fn(...values)
+    const result = fn(...values)
+    
+    return result
   } catch (e) {
     console.warn('Expression evaluation error:', expr, e)
     return undefined

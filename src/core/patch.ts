@@ -9,6 +9,11 @@ import { patchProp } from './patchProp'
  * @param newVnode 新的虚拟 DOM 节点
  */
 export function patch(oldVnode: VNode, newVnode: VNode): void {
+  // 🔥 关键修复：添加空值检查，防止 v-if 返回 null 时导致错误
+  if (!oldVnode || !newVnode) {
+    return
+  }
+  
   if (oldVnode.type !== newVnode.type) {
     const parent = oldVnode.el?.parentNode
     if (parent) {
@@ -18,9 +23,36 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
     return
   }
 
+  // 🔥 组件节点：复制组件实例并更新 props
   if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
     newVnode.component = oldVnode.component
     newVnode.component!.props = reactive(newVnode.props || {})
+    return
+  }
+
+  // 🔥 修复组件更新逻辑：当检测到是组件时，需要触发重新渲染
+  if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
+    const component = oldVnode.component!
+    
+    // 更新 props（如果有变化）
+    if (newVnode.props !== oldVnode.props) {
+      component.props = newVnode.props || {}
+    }
+    
+    // 🔥 关键修复：重新执行 render 函数来触发响应式更新
+    // 这会重新收集依赖并触发受影响的 effect
+    const subTree = component.render()
+    
+    // patch 新旧子树
+    patch(component.subTree!, subTree)
+    
+    // 更新 VNode 的子树引用和 el 引用
+    oldVnode.el = subTree.el
+    newVnode.el = subTree.el
+    
+    // 更新 component 的 subTree
+    component.subTree = subTree
+    
     return
   }
 

@@ -66,6 +66,54 @@ export function buildVNode(element: Element | Node, context: any, components?: R
     const tagName = el.tagName.toLowerCase()
     const originalTagName = el.tagName
 
+    // 🔍 前置拦截 v-if：在进入任何具体类型处理之前先检查条件
+    const vIfAttr = Array.from(el.attributes).find(attr => attr.name === 'v-if')
+    if (vIfAttr) {
+      const conditionExpr = vIfAttr.value
+      const conditionValue = evaluateExpression(conditionExpr, context)
+      if (!conditionValue) {
+        return null
+      }
+    }
+
+    // 🔍 处理 v-else：查找前一个有 v-if 或 v-else-if 的兄弟节点
+    const vElseAttr = Array.from(el.attributes).find(attr => attr.name === 'v-else')
+    if (vElseAttr) {
+      // 在父节点的 childNodes 中向前查找
+      const parent = el.parentNode
+      if (parent) {
+        const siblings = Array.from(parent.childNodes)
+        const currentIndex = siblings.indexOf(el)
+        
+        // 向前查找第一个有 v-if 或 v-else-if 的元素节点
+        for (let i = currentIndex - 1; i >= 0; i--) {
+          const sibling = siblings[i]
+          if (sibling.nodeType === Node.ELEMENT_NODE) {
+            const siblingEl = sibling as Element
+            const prevVIf = Array.from(siblingEl.attributes).find(attr => attr.name === 'v-if')
+            const prevVElseIf = Array.from(siblingEl.attributes).find(attr => attr.name === 'v-else-if')
+            
+            if (prevVIf || prevVElseIf) {
+              // 找到了前一个条件节点，检查其条件是否为 true
+              const prevConditionAttr = prevVIf || prevVElseIf
+              if (prevConditionAttr) {
+                const prevConditionExpr = prevConditionAttr.value
+                const prevConditionValue = evaluateExpression(prevConditionExpr, context)
+                
+                // 如果前一个条件为 true，则当前 v-else 不应该显示
+                if (prevConditionValue) {
+                  return null
+                } else {
+                  // 前一个条件为 false，继续构建当前节点
+                  break
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     // 🔍 查找组件
     let foundComponent = null
     
@@ -109,10 +157,6 @@ export function buildVNode(element: Element | Node, context: any, components?: R
             context[modelName] = e.target.value
           }
         }
-        // 处理 v-if
-        else if (name === 'v-if') {
-          // 跳过
-        }
         // 普通属性
         else {
           const interpolatedValue = interpolate(value, context)
@@ -147,20 +191,7 @@ export function buildVNode(element: Element | Node, context: any, components?: R
 
     // 处理 template 标签
     if (tagName === 'template') {
-      const hasVIf = el.hasAttribute('v-if')
-      const hasVElse = el.hasAttribute('v-else')
-      const hasVElseIf = el.hasAttribute('v-else-if')
-
-      if (hasVIf) {
-        const conditionExpr = el.getAttribute('v-if')
-        if (!conditionExpr) return null
-        const conditionValue = evaluateExpression(conditionExpr, context)
-        
-        if (!conditionValue) {
-          return null
-        }
-      }
-
+      // v-if 已在最前面统一处理，这里直接处理子节点
       const children: any[] = []
       Array.from(el.childNodes).forEach(child => {
         const vnode = buildVNode(child, context, components)
@@ -242,16 +273,6 @@ export function buildVNode(element: Element | Node, context: any, components?: R
         props: svgProps,
         children,
         el: element
-      }
-    }
-
-    // 处理 v-if
-    const vIfAttr = Array.from(el.attributes).find(attr => attr.name === 'v-if')
-    if (vIfAttr) {
-      const conditionExpr = vIfAttr.value
-      const conditionValue = evaluateExpression(conditionExpr, context)
-      if (!conditionValue) {
-        return null
       }
     }
 
