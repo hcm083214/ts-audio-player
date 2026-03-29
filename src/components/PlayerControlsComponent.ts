@@ -1,6 +1,5 @@
 import { h } from '../core/renderer'
 import { compileComponent } from '../core/template-compiler'
-import IconComponent from './IconComponent'
 
 const PlayerControlsComponent = {
   setup() {
@@ -8,43 +7,25 @@ const PlayerControlsComponent = {
     return { isPlaying }
   },
   props: ['isPlaying'],
-  components: { 
-    'IconComponent': IconComponent,
-    'iconcomponent': IconComponent  // 兼容小写情况
-  },
   template: `
     <div class="flex items-center justify-center space-x-8">
       <!-- 上一首 -->
-      <IconComponent 
-        name="skip-previous" 
-        :width="24" 
-        :height="24"
-        className="cursor-pointer hover:text-primary"
-      />
+      <svg width="24" height="24" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
+        <use xlink:href="#icon-skip-previous"></use>
+      </svg>
 
       <!-- 播放/暂停 -->
-      <IconComponent 
-        v-if="!isPlaying"
-        name="play" 
-        :width="40" 
-        :height="40"
-        className="cursor-pointer text-primary"
-      />
-      <IconComponent 
-        v-else
-        name="pause" 
-        :width="40" 
-        :height="40"
-        className="cursor-pointer text-primary"
-      />
+      <svg v-if="!isPlaying" width="40" height="40" class="cursor-pointer text-primary inline-block" style="display: inline-block;">
+        <use xlink:href="#icon-play"></use>
+      </svg>
+      <svg v-else width="40" height="40" class="cursor-pointer text-primary inline-block" style="display: inline-block;">
+        <use xlink:href="#icon-pause"></use>
+      </svg>
 
       <!-- 下一首 -->
-      <IconComponent 
-        name="skip-next" 
-        :width="24" 
-        :height="24"
-        className="cursor-pointer hover:text-primary"
-      />
+      <svg width="24" height="24" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
+        <use xlink:href="#icon-skip-next"></use>
+      </svg>
     </div>
   `
 }

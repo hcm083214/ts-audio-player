@@ -1,6 +1,4 @@
-import { h } from '../core/renderer'
 import { compileComponent } from '../core/template-compiler'
-import IconComponent from './IconComponent'
 
 const SongListComponent = {
   setup() {
@@ -8,10 +6,6 @@ const SongListComponent = {
     return { songs }
   },
   props: ['songs'],
-  components: { 
-    'IconComponent': IconComponent,
-    'iconcomponent': IconComponent  // 兼容小写情况
-  },
   template: `
     <div class="bg-white rounded-lg shadow-md p-4">
       <div
@@ -37,12 +31,9 @@ const SongListComponent = {
           </p>
         </div>
         <div class="text-gray-400">
-          <IconComponent 
-            name="play" 
-            :width="20" 
-            :height="20"
-            className="cursor-pointer hover:text-primary"
-          />
+          <svg width="20" height="20" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
+            <use xlink:href="#icon-play"></use>
+          </svg>
         </div>
       </div>
     </div>

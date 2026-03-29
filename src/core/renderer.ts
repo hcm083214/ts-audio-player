@@ -135,7 +135,6 @@ function mountComponent(vnode: VNode, container: Element) {
   } else if ((component as any).template) {
     // 如果有 template 但没有 render，说明需要编译
     // 这里需要在构建时通过插件处理，运行时无法动态编译
-    console.warn('Component has template but no render function. Please use compileComponent() to compile it first.')
   }
 
   effect(() => {
@@ -279,30 +278,20 @@ function patchProp(el: Element, key: string, oldValue: any, newValue: any) {
       }
     }
   } else {
-    // 🔥 修复命名空间属性（如 xlink:href）
     if (newValue == null || newValue === false) {
       el.removeAttribute(key)
     } else {
-      // 检查是否为命名空间属性
+      // 处理命名空间属性（如 xlink:href）
       if (key.includes(':')) {
         const [prefix, localName] = key.split(':')
         
         if (prefix === 'xlink') {
-          // xlink:href 需要使用 xlink 命名空间
-          try {
-            el.setAttributeNS('http://www.w3.org/1999/xlink', localName, newValue)
-          } catch (e) {
-            console.error('设置 xlink:href 失败:', e)
-            el.setAttribute(key, newValue)
-          }
+          el.setAttributeNS('http://www.w3.org/1999/xlink', localName, newValue)
         } else if (prefix === 'xmlns') {
-          // xmlns 属性使用 xmlns 命名空间
           el.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, newValue)
         } else if (prefix === 'xml') {
-          // xml 属性使用 xml 命名空间
           el.setAttributeNS('http://www.w3.org/XML/1998/namespace', localName, newValue)
         } else {
-          // 其他命名空间属性
           el.setAttribute(key, newValue)
         }
       } else {
@@ -312,6 +301,4 @@ function patchProp(el: Element, key: string, oldValue: any, newValue: any) {
   }
 }
 
-// 导出公共 API
 export { h, render, mount, patch, Fragment }
-export type { VNode, Component, ComponentInstance }

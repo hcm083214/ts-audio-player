@@ -1,6 +1,5 @@
 import { h } from '../core/renderer'
 import { compileComponent } from '../core/template-compiler'
-import IconComponent from './IconComponent'
 
 const VolumeControlComponent = {
   setup() {
@@ -8,19 +7,12 @@ const VolumeControlComponent = {
     return { volume }
   },
   props: ['volume'],
-  components: { 
-    'IconComponent': IconComponent,
-    'iconcomponent': IconComponent  // 兼容小写情况
-  },
   template: `
     <div class="mt-8 flex items-center space-x-4">
       <!-- 音量图标 -->
-      <IconComponent 
-        name="volume" 
-        :width="20" 
-        :height="20"
-        className="cursor-pointer hover:text-primary"
-      />
+      <svg width="20" height="20" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
+        <use xlink:href="#icon-volume"></use>
+      </svg>
       
       <!-- 音量进度条 -->
       <div class="flex-1 volume-bar">

@@ -335,6 +335,9 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
             const interpolatedValue = interpolate(value, context)
             if (name === 'class') {
               elementProps.className = interpolatedValue
+            } else if (name === 'style') {
+              // style 属性直接传递字符串
+              elementProps.style = value
             } else {
               elementProps[name] = interpolatedValue
             }
