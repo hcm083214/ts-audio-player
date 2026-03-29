@@ -71,7 +71,10 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
     : rootElement
 
   // 返回渲染函数，接收 context 作为参数
-  return function(context: any): VNode {
+  return function(props: any, setupState?: any): VNode {
+    // 合并 props 和 setupState 到同一个 context 中
+    const context = { ...props, ...(setupState || {}) }
+    
     // 递归构建 VNode
     function buildVNode(element: Element | Node): any {
       // 文本节点
@@ -306,6 +309,7 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
           if (name.startsWith(':')) {
             const propName = name.slice(1)
             const propValue = evaluateExpression(value, context)
+            
             if (propName !== 'key') {
               elementProps[propName] = propValue
             }
@@ -357,12 +361,10 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
     // 处理根元素的所有子节点
     const children: any[] = []
     
-    Array.from(actualRoot.childNodes).forEach((child, index) => {
+    Array.from(actualRoot.childNodes).forEach((child) => {
       const vnode = buildVNode(child)
       if (vnode) {
         children.push(vnode)
-      } else {
-        console.warn(`跳过子节点 ${index}:`, child.nodeName)
       }
     })
 

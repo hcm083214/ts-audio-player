@@ -6,6 +6,7 @@ const IconComponent = {
     // props 可能是响应式代理对象，需要安全地访问
     const getName = () => {
       try {
+        console.log("🚀 ~ getName ~ props?.name:", props?.name)
         return props?.name || ''
       } catch (e) {
         console.error('Failed to access props.name:', e)
@@ -14,13 +15,14 @@ const IconComponent = {
     }
     
     const name: string = '#icon-' + getName()
+    console.log("🚀 ~ name:", name)
     const width: number = props?.width || 24
     const height: number = props?.height || 24
     const className: string = props?.className || ''
     
     return { name, width, height, className }
   },
-  props: ['iconName', 'width', 'height', 'className'],
+  props: ['name', 'width', 'height', 'className'],
   template: `
     <svg 
       :width="width" 
