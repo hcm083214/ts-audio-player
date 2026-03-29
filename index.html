@@ -1,17 +1,69 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>网易云音乐</title>
-    <link rel="stylesheet" href="./src/styles/index.css" />
-  </head>
-  <body>
-    <!-- SVG Sprite 图标库 - 通过外部文件引入 -->
-    <object data="/src/img/icons-sprite.svg" type="image/svg+xml" style="display: none;"></object>
-    
-    <div id="app"></div>
-    <script type="module" src="./src/main.ts"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>网易云音乐</title>
+  <link rel="stylesheet" href="./src/styles/index.css" />
+</head>
+
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="display: none;">
+    <!-- search icon -->
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </symbol>
+
+    <!-- arrow-left icon -->
+    <symbol id="icon-arrow-left" viewBox="0 0 24 24">
+      <polyline points="15 18 9 12 15 6"></polyline>
+    </symbol>
+
+    <!-- skip-previous icon -->
+    <symbol id="icon-skip-previous" viewBox="0 0 24 24">
+      <polygon points="19 20 9 12 19 4 19 20"></polygon>
+    </symbol>
+
+    <!-- play icon -->
+    <symbol id="icon-play" viewBox="0 0 24 24">
+      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+    </symbol>
+
+    <!-- pause icon -->
+    <symbol id="icon-pause" viewBox="0 0 24 24">
+      <rect x="6" y="4" width="4" height="16"></rect>
+      <rect x="14" y="4" width="4" height="16"></rect>
+    </symbol>
+
+    <!-- skip-next icon -->
+    <symbol id="icon-skip-next" viewBox="0 0 24 24">
+      <polygon points="5 4 15 12 5 20 5 4"></polygon>
+    </symbol>
+
+    <!-- play-small icon -->
+    <symbol id="icon-play-small" viewBox="0 0 24 24">
+      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+    </symbol>
+
+    <!-- volume icon -->
+    <symbol id="icon-volume" viewBox="0 0 24 24">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+    </symbol>
+
+    <!-- expand icon -->
+    <symbol id="icon-expand" viewBox="0 0 24 24">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+    </symbol>
+  </svg>
+
+  <div id="app"></div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+
 </html>
