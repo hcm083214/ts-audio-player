@@ -55,6 +55,13 @@ function render(vnode: VNode, container: Element) {
 // 挂载虚拟 DOM
 function mount(vnode: VNode, container: Element) {
   if (typeof vnode.type === 'object' && 'setup' in vnode.type) {
+    console.log('🎯 Mounting component:', { 
+      name: (vnode.type as Component).constructor?.name || 'Anonymous',
+      hasSetup: typeof (vnode.type as Component).setup === 'function',
+      hasTemplate: !!(vnode.type as Component).template,
+      propsCount: vnode.props ? Object.keys(vnode.props).length : 0,
+      propsKeys: vnode.props ? Object.keys(vnode.props) : []
+    })
     mountComponent(vnode, container)
     return
   }
@@ -111,6 +118,9 @@ function mount(vnode: VNode, container: Element) {
 function mountComponent(vnode: VNode, container: Element) {
   const component = vnode.type as Component
   const props = vnode.props || {}
+  
+  console.log('🎯 Mounting component:', component)
+  console.log('📦 VNode props:', props)
 
   const instance: ComponentInstance = {
     vnode,
@@ -122,14 +132,19 @@ function mountComponent(vnode: VNode, container: Element) {
   }
 
   vnode.component = instance
+  
+  console.log('🔧 Reactive props created:', instance.props)
 
   if (component.setup) {
+    console.log('🚀 Calling setup with props:', instance.props)
     instance.setupState = component.setup(instance.props)
+    console.log('✅ Setup returned:', instance.setupState)
   }
 
   // 优先使用 render 函数，如果没有则尝试从 template 编译
   if (component.render) {
     instance.render = component.render
+    console.log('🔧 使用已编译的 render 函数:', component.constructor?.name || 'Anonymous')
   } else if ((component as any).template) {
     // 如果有 template 但没有 render，说明需要编译
     // 这里需要在构建时通过插件处理，运行时无法动态编译
@@ -138,7 +153,13 @@ function mountComponent(vnode: VNode, container: Element) {
 
   effect(() => {
     if (!instance.isMounted) {
+      console.log('🎬 首次渲染组件:', component.constructor?.name || 'Anonymous')
       const subTree = instance.render(instance.props, instance.setupState)
+      console.log('📦 Render 返回的 VNode:', {
+        type: typeof subTree.type === 'string' ? subTree.type : (subTree.type.constructor?.name || 'Object'),
+        props: subTree.props,
+        childrenCount: Array.isArray(subTree.children) ? subTree.children.length : 0
+      })
       instance.subTree = subTree
       mount(subTree, container)
       vnode.el = subTree.el
@@ -285,4 +306,6 @@ function patchProp(el: Element, key: string, oldValue: any, newValue: any) {
   }
 }
 
-export { h, render, Fragment }
+// 导出公共 API
+export { h, render, mount, patch, Fragment }
+export type { VNode, Component, ComponentInstance }
