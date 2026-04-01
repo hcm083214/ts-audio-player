@@ -76,6 +76,58 @@ export function buildVNode(element: Element | Node, context: any, components?: R
       }
     }
 
+    // 🔥 新增：处理 v-for 指令
+    const vForAttr = Array.from(el.attributes).find(attr => attr.name === 'v-for')
+    if (vForAttr) {
+      const forExpr = vForAttr.value
+      // 解析 v-for 表达式："(item, index) in array"
+      const match = forExpr.match(/^\s*\(\s*(\w+)\s*,?\s*(\w+)?\s*\)\s+in\s+(.+)\s*$/)
+      if (!match) {
+        console.error('Invalid v-for expression:', forExpr)
+        return null
+      }
+      
+      const [, itemVar, indexVar, arrayExpr] = match
+      const array = evaluateExpression(arrayExpr.trim(), context)
+      
+      if (!Array.isArray(array)) {
+        console.error('v-for expects an array but got:', typeof array)
+        return null
+      }
+      
+      // 为数组中的每个元素生成 VNode
+      const vnodes: any[] = []
+      array.forEach((item, actualIndex) => {
+        // 创建新的上下文，包含循环变量
+        const loopContext = { ...context }
+        loopContext[itemVar] = item
+        if (indexVar) {
+          loopContext[indexVar] = actualIndex
+        }
+        
+        // 克隆节点以移除 v-for 属性，避免递归处理
+        const clonedEl = el.cloneNode(true) as Element
+        Array.from(clonedEl.attributes).forEach(attr => {
+          if (attr.name === 'v-for') {
+            clonedEl.removeAttribute('v-for')
+          }
+        })
+        
+        // 递归构建 VNode
+        const vnode = buildVNode(clonedEl, loopContext, components)
+        if (vnode) {
+          vnodes.push(vnode)
+        }
+      })
+      
+      // 返回 Fragment 包裹所有生成的 VNode
+      return {
+        type: 'fragment' as any,
+        props: {},
+        children: vnodes
+      }
+    }
+
     // 🔍 处理 v-else：查找前一个有 v-if 或 v-else-if 的兄弟节点
     const vElseAttr = Array.from(el.attributes).find(attr => attr.name === 'v-else')
     if (vElseAttr) {
