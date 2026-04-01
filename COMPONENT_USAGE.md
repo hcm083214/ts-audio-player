@@ -125,7 +125,7 @@ import { onMounted } from '../core/reactive'
 
 setup() {
   onMounted(() => {
-    console.log('组件已挂载')
+    // console.log('组件已挂载')
     // 可以在这里调用 API、初始化 DOM 等
   })
   
@@ -140,11 +140,11 @@ setup() {
 ```typescript
 setup() {
   const handleClick = (event) => {
-    console.log('按钮被点击了', event)
+    // console.log('按钮被点击了', event)
   }
   
   const handleSubmit = () => {
-    console.log('表单提交')
+    // console.log('表单提交')
   }
   
   return { handleClick, handleSubmit }
@@ -419,7 +419,7 @@ setup() {
   const count = ref(0)
   
   watch(count, (newVal, oldVal) => {
-    console.log(`Count changed from ${oldVal} to ${newVal}`)
+    // console.log(`Count changed from ${oldVal} to ${newVal}`)
   })
   
   return { count }

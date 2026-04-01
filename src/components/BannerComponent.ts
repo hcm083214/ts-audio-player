@@ -2,14 +2,20 @@ import { h } from '../core/renderer'
 import { compileComponent } from '../core/template-compiler'
 
 const BannerComponent = {
-  setup() {
-    return {}
+  setup(props: { playlists: any }) {
+    return {
+      // 轮播图数据
+      bannerLists: props.playlists.slice(0, 5),
+    }
   },
+  props: ['playlists'],
   template: `
     <div class="relative h-64 md:h-80 rounded-lg overflow-hidden">
       <img
-        src="https://p2.music.126.net/6y-UleORITEDbvrOLV0Q8A==/5639395138885805.jpg"
-        alt="轮播图"
+        v-for="(banner, index) in bannerLists"
+        :key="banner.id"
+        :src="banner.picUrl"
+        :alt="banner.name"
         class="w-full h-full object-cover"
       />
       <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">

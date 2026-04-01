@@ -25,6 +25,8 @@ const HomePageComponent = {
           api.getTopSong(),
           api.getTopArtists(0, 10)
         ])
+        console.log("🚀 ~ loadData ~ playlistsRes, songsRes, artistsRes:", playlistsRes, songsRes, artistsRes)
+
         playlists.value = playlistsRes.result
         topSongs.value = songsRes.data
         topArtists.value = artistsRes.artists
@@ -47,7 +49,7 @@ const HomePageComponent = {
       loading
     }
   },
-  components: { 
+  components: {
     HeaderComponent,
     BannerComponent,
     PlaylistCardComponent,
@@ -69,7 +71,7 @@ const HomePageComponent = {
         <!-- 内容 -->
         <div v-else>
           <!-- 轮播图 -->
-          <BannerComponent />
+          <BannerComponent :playlists="playlists" />
 
           <!-- 推荐歌单 -->
           <div class="mt-8">

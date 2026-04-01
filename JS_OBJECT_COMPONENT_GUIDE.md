@@ -67,7 +67,7 @@ const MyComponent = {
     }
     
     onMounted(() => {
-      console.log('组件已挂载')
+      // console.log('组件已挂载')
     })
     
     return { count, increment }

@@ -6,7 +6,7 @@
 
 ```typescript
 setup(props: any) {
-  console.log("🚀 ~ getName ~ props?.name:", props?.name)
+  // console.log("🚀 ~ getName ~ props?.name:", props?.name)
   // 输出：undefined
 }
 ```
@@ -84,8 +84,8 @@ function mountComponent(vnode: VNode, container: Element) {
 在 `template-compiler.ts` 中添加日志（已添加）：
 
 ```typescript
-console.log('🔍 处理属性:', name, '=', value)
-console.log('📝 插值结果:', name, '=', interpolatedValue)
+// console.log('🔍 处理属性:', name, '=', value)
+// console.log('📝 插值结果:', name, '=', interpolatedValue)
 ```
 
 **预期输出**：
@@ -99,7 +99,7 @@ console.log('📝 插值结果:', name, '=', interpolatedValue)
 在返回 VNode 前添加日志：
 
 ```typescript
-console.log('✅ VNode created:', { 
+// console.log('✅ VNode created:', { 
   type: componentType.constructor.name, 
   props 
 })
@@ -118,8 +118,8 @@ console.log('✅ VNode created:', {
 在 `renderer.ts` 中添加日志（已添加）：
 
 ```typescript
-console.log('🎯 Mounting component:', component)
-console.log('📦 VNode props:', props)
+// console.log('🎯 Mounting component:', component)
+// console.log('📦 VNode props:', props)
 ```
 
 **预期输出**：
@@ -133,9 +133,9 @@ console.log('📦 VNode props:', props)
 在 `renderer.ts` 中继续添加日志：
 
 ```typescript
-console.log('🔧 Reactive props:', instance.props)
-console.log('🚀 Calling setup with:', instance.props)
-console.log('📦 Setup 中访问 props.name:', instance.props.name)
+// console.log('🔧 Reactive props:', instance.props)
+// console.log('🚀 Calling setup with:', instance.props)
+// console.log('📦 Setup 中访问 props.name:', instance.props.name)
 ```
 
 **如果这里已经是 undefined，说明是响应式系统的问题**。
@@ -251,7 +251,7 @@ setup(props: any) {
 **解决**：检查实际解析后的属性名：
 ```typescript
 Array.from(el.attributes).forEach(attr => {
-  console.log('Attribute:', attr.name, attr.value)
+  // console.log('Attribute:', attr.name, attr.value)
   // 确认 name 是否为预期的值
 })
 ```

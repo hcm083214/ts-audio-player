@@ -151,11 +151,11 @@ template: `
 ```typescript
 setup() {
   const handleClick = (event) => {
-    console.log('点击了', event.target)
+    // console.log('点击了', event.target)
   }
   
   const handleSubmit = () => {
-    console.log('表单提交')
+    // console.log('表单提交')
   }
   
   return { handleClick, handleSubmit }
@@ -194,7 +194,7 @@ import { onMounted } from '../core/reactive'
 
 setup() {
   onMounted(() => {
-    console.log('组件已挂载')
+    // console.log('组件已挂载')
     // 调用 API、初始化等
   })
   

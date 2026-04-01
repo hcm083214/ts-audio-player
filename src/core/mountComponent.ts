@@ -16,13 +16,13 @@ export function mountComponent(vnode: VNode, container: Element): void {
   
   // 🔥 检查该 component 是否已经挂载过
   if (componentInstanceMap.has(component)) {
-    console.log('✅ [mountComponent] 组件已存在，跳过挂载')
+    // console.log('✅ [mountComponent] 组件已存在，跳过挂载')
     return
   }
   
   const props = vnode.props || {}
   
-  console.log('🔵 [mountComponent] 开始挂载组件')
+  // console.log('🔵 [mountComponent] 开始挂载组件')
   
   const instance: ComponentInstance = {
     vnode,
@@ -38,7 +38,7 @@ export function mountComponent(vnode: VNode, container: Element): void {
   
   if (component.setup) {
     instance.setupState = component.setup(instance.props)
-    console.log('🔵 [mountComponent] setupState:', instance.setupState)
+    // console.log('🔵 [mountComponent] setupState:', instance.setupState)
   }
 
   // 优先使用 render 函数，如果没有则尝试从 template 编译

@@ -6,7 +6,7 @@
 
 ```typescript
 setup(props: any) {
-  console.log("🚀 ~ props:", props.name)
+  // console.log("🚀 ~ props:", props.name)
   // ...
 }
 ```
@@ -74,7 +74,7 @@ component.setup(instance.props)  // ⚠️ 传入的是响应式代理对象
 ```typescript
 const IconComponent = {
   setup(props: any) {
-    console.log(props.name)  // ❌ 此时 props 可能未定义
+    // console.log(props.name)  // ❌ 此时 props 可能未定义
     return {}
   }
 }
@@ -134,7 +134,7 @@ const IconComponent = {
 const IconComponent = {
   setup(props: any) {
     // 不要在这里立即访问 props
-    // console.log(props.name)  // ❌ 可能未定义
+    // // console.log(props.name)  // ❌ 可能未定义
     
     // 而是在返回的方法中访问
     const updateIcon = () => {
@@ -169,7 +169,7 @@ const IconComponent = {
     const height: number = props?.height || 24
     const className: string = props?.className || ''
     
-    console.log("✅ ~ 处理后的值:", { name, width, height, className })
+    // console.log("✅ ~ 处理后的值:", { name, width, height, className })
     
     return { name, width, height, className }
   },
@@ -184,11 +184,11 @@ const IconComponent = {
 
 ```typescript
 setup(props: any) {
-  console.log("🔍 IconComponent setup 被调用")
-  console.log("📦 props:", props)
-  console.log("📦 props 类型:", typeof props, Object.getPrototypeOf(props))
-  console.log("📦 props.name:", props?.name)
-  console.log("📦 props.width:", props?.width)
+  // console.log("🔍 IconComponent setup 被调用")
+  // console.log("📦 props:", props)
+  // console.log("📦 props 类型:", typeof props, Object.getPrototypeOf(props))
+  // console.log("📦 props.name:", props?.name)
+  // console.log("📦 props.width:", props?.width)
   
   // ...
 }
@@ -203,7 +203,7 @@ return {
   type: componentType,
   props,
   children,
-  _debug: () => console.log('VNode created:', { type: componentType, props })
+  _debug: () => // console.log('VNode created:', { type: componentType, props })
 }
 ```
 
@@ -213,8 +213,8 @@ return {
 
 ```typescript
 function mountComponent(vnode: VNode, container: Element) {
-  console.log('Mounting component:', vnode.type)
-  console.log('Component props:', vnode.props)
+  // console.log('Mounting component:', vnode.type)
+  // console.log('Component props:', vnode.props)
   // ...
 }
 ```

@@ -5,17 +5,17 @@ class Dep {
   depend() {
     if (activeEffect) {
       this.subscribers.add(activeEffect)
-      console.log('🔵 [Dep.depend] 添加订阅者，当前订阅数:', this.subscribers.size, 'activeEffect:', activeEffect === this.subscribers.values().next().value)
+      // // console.log('🔵 [Dep.depend] 添加订阅者，当前订阅数:', this.subscribers.size, 'activeEffect:', activeEffect === this.subscribers.values().next().value)
     }
   }
 
   notify() {
-    console.log('🔵 [Dep.notify] 开始通知，订阅数:', this.subscribers.size)
+    // // console.log('🔵 [Dep.notify] 开始通知，订阅数:', this.subscribers.size)
     // 🔥 关键修复：使用 queueMicrotask 异步调度，防止无限递归
     this.subscribers.forEach(effect => {
-      console.log('🔵 [Dep.notify] 准备执行 effect')
+      // // console.log('🔵 [Dep.notify] 准备执行 effect')
       queueMicrotask(() => {
-        console.log('🔵 [Dep.notify] microtask 中执行 effect')
+        // // console.log('🔵 [Dep.notify] microtask 中执行 effect')
         effect()
       })
     })

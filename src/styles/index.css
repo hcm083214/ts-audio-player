@@ -8,11 +8,6 @@ body {
   color: #1a1a1a;
 }
 
-/* 🔥 SVG 图标样式 - 强制设置尺寸 */
-svg {
-  display: inline-block !important;
-  /* 🔥 关键修复：不要强制设置宽高，让 SVG 使用属性中设置的值 */
-}
 
 /* 关键修复：强制 use 元素填充父级 SVG */
 svg use {

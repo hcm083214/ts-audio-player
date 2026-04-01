@@ -312,7 +312,7 @@ dist/
 ```javascript
 // 在 Console 中执行
 document.querySelectorAll('use').forEach(use => {
-  console.log(use.getAttribute('xlink:href'))
+  // console.log(use.getAttribute('xlink:href'))
 })
 ```
 
