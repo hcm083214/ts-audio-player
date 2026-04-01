@@ -95,8 +95,8 @@ export function buildVNode(element: Element | Node, context: any, components?: R
         return null
       }
       
-      // 为数组中的每个元素生成 VNode
-      const vnodes: any[] = []
+      // 🔥 关键修改：克隆元素及其子节点
+      const children: any[] = []
       array.forEach((item, actualIndex) => {
         // 创建新的上下文，包含循环变量
         const loopContext = { ...context }
@@ -105,26 +105,27 @@ export function buildVNode(element: Element | Node, context: any, components?: R
           loopContext[indexVar] = actualIndex
         }
         
-        // 克隆节点以移除 v-for 属性，避免递归处理
+        // 🔥 克隆当前元素及其所有子节点（true 表示深度克隆）
         const clonedEl = el.cloneNode(true) as Element
+        // 移除 v-for 属性，避免递归处理
         Array.from(clonedEl.attributes).forEach(attr => {
           if (attr.name === 'v-for') {
             clonedEl.removeAttribute('v-for')
           }
         })
         
-        // 递归构建 VNode
+        // 递归构建 VNode（会处理克隆后的元素及其子节点）
         const vnode = buildVNode(clonedEl, loopContext, components)
         if (vnode) {
-          vnodes.push(vnode)
+          children.push(vnode)
         }
       })
       
-      // 返回 Fragment 包裹所有生成的 VNode
+      // 直接返回子节点数组，让父容器处理
       return {
-        type: 'fragment' as any,
+        type: Fragment as any,
         props: {},
-        children: vnodes
+        children
       }
     }
 

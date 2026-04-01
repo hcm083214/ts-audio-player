@@ -1,4 +1,4 @@
-import { effect, reactive, activeEffect } from './reactive'
+import { effect, reactive, activeEffect, triggerMounted } from './reactive'
 import { VNode, Component, ComponentInstance } from './types'
 import { mount } from './mount'
 import { patch } from './patch'
@@ -57,6 +57,9 @@ export function mountComponent(vnode: VNode, container: Element): void {
       mount(subTree, container)
       vnode.el = subTree.el
       instance.isMounted = true
+      
+      // 🔥 触发 onMounted 回调
+      triggerMounted()
     } else {
       patch(instance.subTree!, subTree)
       instance.subTree = subTree

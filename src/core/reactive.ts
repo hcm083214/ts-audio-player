@@ -166,10 +166,28 @@ function computed<T>(getter: () => T): ComputedImpl<T> {
 
 // 生命周期钩子
 const onMountedCallbacks: (() => void)[] = []
+const onUnmountedCallbacks: (() => void)[] = []
 
 function onMounted(fn: () => void) {
   onMountedCallbacks.push(fn)
   // 立即执行，简化实现
   setTimeout(fn, 0)
 }
-export { reactive, ref, effect, computed, onMounted }
+
+function onUnmounted(fn: () => void) {
+  onUnmountedCallbacks.push(fn)
+}
+
+// 触发挂载回调
+function triggerMounted() {
+  onMountedCallbacks.forEach(cb => cb())
+  onMountedCallbacks.length = 0
+}
+
+// 触发卸载回调
+function triggerUnmounted() {
+  onUnmountedCallbacks.forEach(cb => cb())
+  onUnmountedCallbacks.length = 0
+}
+
+export { reactive, ref, effect, computed, onMounted, onUnmounted, triggerMounted, triggerUnmounted }

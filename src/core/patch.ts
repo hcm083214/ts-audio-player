@@ -1,5 +1,5 @@
 import { VNode, ComponentInstance } from './types'
-import { reactive } from './reactive'
+import { reactive, triggerUnmounted } from './reactive'
 import { mount } from './mount'
 import { patchProp } from './patchProp'
 
@@ -16,6 +16,12 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
   
   if (oldVnode.type !== newVnode.type) {
     const parent = oldVnode.el?.parentNode
+    
+    // 🔥 如果是组件，触发 onUnmounted 回调
+    if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
+      triggerUnmounted()
+    }
+    
     if (parent) {
       parent.removeChild(oldVnode.el!)
       mount(newVnode, parent as Element)
