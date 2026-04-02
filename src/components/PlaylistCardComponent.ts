@@ -2,8 +2,8 @@ import { h } from '../core/renderer'
 import { compileComponent } from '../core/template-compiler'
 
 const PlaylistCardComponent = {
-  setup() {
-    const playlist: any = {}
+  setup(props: { playlist: any }) {
+    const playlist: any = props.playlist
     return { playlist }
   },
   props: ['playlist'],
@@ -11,7 +11,7 @@ const PlaylistCardComponent = {
     <div class="playlist-card bg-white rounded-lg overflow-hidden shadow-md">
       <div class="relative">
         <img
-          :src="playlist.coverImgUrl"
+          :src="playlist.picUrl"
           :alt="playlist.name"
           class="w-full h-48 object-cover"
         />

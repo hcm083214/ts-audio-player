@@ -37,9 +37,16 @@ export function evaluateExpression(expr: string, context: any): any {
       return value
     })
     
-    // 创建函数：function(playlists, topSongs, topArtists, loading) { return (expr) }
-    const fn = new Function(...keys, `"use strict"; return (${expr})`)
-    const result = fn(...values)
+    // 🔥 关键修复：添加全局对象支持（Math、JSON、Date 等）
+    // 创建包含全局对象的扩展上下文
+    const globalKeys = ['Math', 'JSON', 'Date', 'Number', 'String', 'Boolean', 'Array', 'Object']
+    const allKeys = [...keys, ...globalKeys]
+    const globalValues = globalKeys.map(key => (window as any)[key])
+    const allValues = [...values, ...globalValues]
+    
+    // 创建函数：function(playlists, topSongs, ..., Math, JSON, ...) { return (expr) }
+    const fn = new Function(...allKeys, `"use strict"; return (${expr})`)
+    const result = fn(...allValues)
     
     return result
   } catch (e) {

@@ -1,7 +1,8 @@
-import { VNode, ComponentInstance, Fragment } from './types'
+import { VNode, ComponentInstance, Fragment, Component } from './types'
 import { reactive, triggerUnmounted } from './reactive'
 import { mount } from './mount'
 import { patchProp } from './patchProp'
+import { componentInstanceMap } from './mountComponent'
 
 /**
  * 更新虚拟 DOM
@@ -29,35 +30,29 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
     return
   }
 
-  // 🔥 组件节点：复制组件实例并更新 props
-  if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
-    newVnode.component = oldVnode.component
-    newVnode.component!.props = reactive(newVnode.props || {})
-    return
-  }
-
   // 🔥 修复组件更新逻辑：当检测到是组件时，需要触发重新渲染
   if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
-    const component = oldVnode.component!
+    const component = oldVnode.type as Component
+    const instance = componentInstanceMap.get(component)
     
-    // 更新 props（如果有变化）
-    if (newVnode.props !== oldVnode.props) {
-      component.props = newVnode.props || {}
+    if (!instance) {
+      console.error('Component instance not found in componentInstanceMap')
+      return
     }
     
     // 🔥 关键修复：重新执行 render 函数来触发响应式更新
     // 这会重新收集依赖并触发受影响的 effect
-    const subTree = component.render()
+    const subTree = instance.render(instance.props, instance.setupState)
     
     // patch 新旧子树
-    patch(component.subTree!, subTree)
+    patch(instance.subTree!, subTree)
     
     // 更新 VNode 的子树引用和 el 引用
     oldVnode.el = subTree.el
     newVnode.el = subTree.el
     
     // 更新 component 的 subTree
-    component.subTree = subTree
+    instance.subTree = subTree
     
     return
   }
@@ -67,6 +62,11 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
     // Fragment 没有实际的 DOM 元素，直接更新子节点
     const oldChildren = Array.isArray(oldVnode.children) ? oldVnode.children : []
     const newChildren = Array.isArray(newVnode.children) ? newVnode.children : []
+    // 🔥 关键修复：如果 oldVnode.el 不存在，说明是首次 patch，应该跳过
+    if (!oldVnode.el) {
+      console.warn('⚠️ Fragment not mounted yet (oldVnode.el is undefined), skipping patch')
+      return
+    }
     
     // Fragment 使用父容器的引用
     const container = oldVnode.el as any as Element

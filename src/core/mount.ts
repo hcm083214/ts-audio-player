@@ -31,8 +31,9 @@ export function mount(vnode: VNode, container: Element): void {
 
   if (vnode.type === Fragment) {
     // 片段节点
+    // console.log('🔍 Mount Fragment with', vnode.children.length, 'children to container:', container.tagName, container.className)
     vnode.el = container as any
-    vnode.children.forEach(child => {
+    vnode.children.forEach((child, index) => {
       // 处理字符串类型的子节点（文本节点）
       if (typeof child === 'string') {
         const textNode = document.createTextNode(child)

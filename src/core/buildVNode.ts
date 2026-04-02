@@ -60,351 +60,240 @@ export function buildVNode(element: Element | Node, context: any, components?: R
     return null
   }
 
-  // 元素节点
-  if (element.nodeType === Node.ELEMENT_NODE) {
-    const el = element as Element
-    const tagName = el.tagName.toLowerCase()
-    const originalTagName = el.tagName
+  // 🔥 显式检查：确保只处理元素节点
+  if (element.nodeType !== Node.ELEMENT_NODE) {
+    return null
+  }
 
-    // 🔍 前置拦截 v-if：在进入任何具体类型处理之前先检查条件
-    const vIfAttr = Array.from(el.attributes).find(attr => attr.name === 'v-if')
-    if (vIfAttr) {
-      const conditionExpr = vIfAttr.value
-      const conditionValue = evaluateExpression(conditionExpr, context)
-      if (!conditionValue) {
-        return null
-      }
+  // 此时 TypeScript 可以确定 element 是 Element
+  const el = element as Element
+  const tagName = el.tagName.toLowerCase()
+  const originalTagName = el.tagName
+
+  // 🔍 前置拦截 v-if：在进入任何具体类型处理之前先检查条件
+  const vIfAttr = Array.from(el.attributes).find(attr => attr.name === 'v-if')
+  if (vIfAttr) {
+    const conditionExpr = vIfAttr.value
+    const conditionValue = evaluateExpression(conditionExpr, context)
+    if (!conditionValue) {
+      return null
     }
+  }
 
-    // 🔥 新增：处理 v-for 指令
-    const vForAttr = Array.from(el.attributes).find(attr => attr.name === 'v-for')
-    if (vForAttr) {
-      const forExpr = vForAttr.value
-      // 解析 v-for 表达式："(item, index) in array"
-      const match = forExpr.match(/^\s*\(\s*(\w+)\s*,?\s*(\w+)?\s*\)\s+in\s+(.+)\s*$/)
-      if (!match) {
-        console.error('Invalid v-for expression:', forExpr)
-        return null
+  // 🔥 新增：处理 v-for 指令
+  const vForAttr = Array.from(el.attributes).find(attr => attr.name === 'v-for')
+  if (vForAttr) {
+    const forExpr = vForAttr.value
+    // 🔥 修复：支持两种 v-for 语法
+    // 1. "item in array" 
+    // 2. "(item, index) in array"
+    let itemVar: string, indexVar: string | undefined, arrayExpr: string
+    
+    const simpleMatch = forExpr.match(/^(\w+)\s+in\s+(.+)$/)
+    const complexMatch = forExpr.match(/^\s*\(\s*(\w+)\s*,?\s*(\w+)?\s*\)\s+in\s+(.+)\s*$/)
+    
+    if (simpleMatch) {
+      // 简单语法：item in array
+      [, itemVar, arrayExpr] = simpleMatch
+      indexVar = undefined
+    } else if (complexMatch) {
+      // 复杂语法：(item, index) in array
+      const [, item, index, array] = complexMatch
+      itemVar = item
+      indexVar = index
+      arrayExpr = array
+    } else {
+      console.error('Invalid v-for expression:', forExpr)
+      return null
+    }
+    const array = evaluateExpression(arrayExpr.trim(), context)
+    
+    if (!Array.isArray(array)) {
+      console.error('v-for expects an array but got:', typeof array)
+      return null
+    }
+    
+    // 🔥 关键修改：克隆元素及其子节点
+    const children: any[] = []
+    // console.log('🔍 v-for: Processing array with length:', array.length)
+    array.forEach((item, actualIndex) => {
+      // 创建新的上下文，包含循环变量
+      const loopContext = { ...context }
+      loopContext[itemVar] = item
+      if (indexVar) {
+        loopContext[indexVar] = actualIndex
       }
       
-      const [, itemVar, indexVar, arrayExpr] = match
-      const array = evaluateExpression(arrayExpr.trim(), context)
-      
-      if (!Array.isArray(array)) {
-        console.error('v-for expects an array but got:', typeof array)
-        return null
-      }
-      
-      // 🔥 关键修改：克隆元素及其子节点
-      const children: any[] = []
-      array.forEach((item, actualIndex) => {
-        // 创建新的上下文，包含循环变量
-        const loopContext = { ...context }
-        loopContext[itemVar] = item
-        if (indexVar) {
-          loopContext[indexVar] = actualIndex
-        }
-        
-        // 🔥 克隆当前元素及其所有子节点（true 表示深度克隆）
-        const clonedEl = el.cloneNode(true) as Element
-        // 移除 v-for 属性，避免递归处理
-        Array.from(clonedEl.attributes).forEach(attr => {
-          if (attr.name === 'v-for') {
-            clonedEl.removeAttribute('v-for')
-          }
-        })
-        
-        // 递归构建 VNode（会处理克隆后的元素及其子节点）
-        const vnode = buildVNode(clonedEl, loopContext, components)
-        if (vnode) {
-          children.push(vnode)
+      // 🔥 克隆当前元素及其所有子节点（true 表示深度克隆）
+      const clonedEl = el.cloneNode(true) as Element
+      // 移除 v-for 属性，避免递归处理
+      Array.from(clonedEl.attributes).forEach(attr => {
+        if (attr.name === 'v-for') {
+          clonedEl.removeAttribute('v-for')
         }
       })
       
-      // 直接返回子节点数组，让父容器处理
-      return {
-        type: Fragment as any,
-        props: {},
-        children
+      // 递归构建 VNode（会处理克隆后的元素及其子节点）
+      const vnode = buildVNode(clonedEl, loopContext, components)
+      if (vnode) {
+        children.push(vnode)
+        // console.log('✅ v-for: Added vnode at index', actualIndex, 'vnode.type:', typeof vnode.type === 'object' ? 'Component' : vnode.type)
+      } else {
+        console.warn('❌ v-for: vnode is null at index', actualIndex)
       }
+    })
+    
+    // console.log('📦 v-for: Returning Fragment with', children.length, 'children')
+    
+    // 直接返回子节点数组，让父容器处理
+    return {
+      type: Fragment as any,
+      props: {},
+      children
     }
+  }
 
-    // 🔍 处理 v-else：查找前一个有 v-if 或 v-else-if 的兄弟节点
-    const vElseAttr = Array.from(el.attributes).find(attr => attr.name === 'v-else')
-    if (vElseAttr) {
-      // 在父节点的 childNodes 中向前查找
-      const parent = el.parentNode
-      if (parent) {
-        const siblings = Array.from(parent.childNodes)
-        const currentIndex = siblings.indexOf(el)
-        
-        // 向前查找第一个有 v-if 或 v-else-if 的元素节点
-        for (let i = currentIndex - 1; i >= 0; i--) {
-          const sibling = siblings[i]
-          if (sibling.nodeType === Node.ELEMENT_NODE) {
-            const siblingEl = sibling as Element
-            const prevVIf = Array.from(siblingEl.attributes).find(attr => attr.name === 'v-if')
-            const prevVElseIf = Array.from(siblingEl.attributes).find(attr => attr.name === 'v-else-if')
-            
-            if (prevVIf || prevVElseIf) {
-              // 找到了前一个条件节点，检查其条件是否为 true
-              const prevConditionAttr = prevVIf || prevVElseIf
-              if (prevConditionAttr) {
-                const prevConditionExpr = prevConditionAttr.value
-                const prevConditionValue = evaluateExpression(prevConditionExpr, context)
-                
-                // 如果前一个条件为 true，则当前 v-else 不应该显示
-                if (prevConditionValue) {
-                  return null
-                } else {
-                  // 前一个条件为 false，继续构建当前节点
-                  break
-                }
+  // 🔍 处理 v-else：查找前一个有 v-if 或 v-else-if 的兄弟节点
+  const vElseAttr = Array.from(el.attributes).find(attr => attr.name === 'v-else')
+  if (vElseAttr) {
+    let shouldRender = false
+    
+    // 在父节点的 childNodes 中向前查找
+    const parent = el.parentNode
+    if (parent) {
+      const siblings = Array.from(parent.childNodes)
+      const currentIndex = siblings.indexOf(el)
+      
+      // 向前查找第一个有 v-if 或 v-else-if 的元素节点
+      for (let i = currentIndex - 1; i >= 0; i--) {
+        const sibling = siblings[i]
+        if (sibling.nodeType === Node.ELEMENT_NODE) {
+          const siblingEl = sibling as Element
+          const prevVIf = Array.from(siblingEl.attributes).find(attr => attr.name === 'v-if')
+          const prevVElseIf = Array.from(siblingEl.attributes).find(attr => attr.name === 'v-else-if')
+          
+          if (prevVIf || prevVElseIf) {
+            // 找到了前一个条件节点，检查其条件是否为 true
+            const prevConditionAttr = prevVIf || prevVElseIf
+            if (prevConditionAttr) {
+              const prevConditionExpr = prevConditionAttr.value
+              const prevConditionValue = evaluateExpression(prevConditionExpr, context)
+              
+              // 如果前一个条件为 true，则当前 v-else 不应该显示
+              if (prevConditionValue) {
+                return null
+              } else {
+                // 前一个条件为 false，继续构建当前节点
+                shouldRender = true
+                break
               }
             }
           }
         }
       }
     }
-
-    // 🔍 查找组件
-    let foundComponent = null
     
-    if (components) {
-      for (const [key, value] of Object.entries(components)) {
-        if (key.toUpperCase() === originalTagName) {
-          foundComponent = value
-          break
-        }
-      }
+    // 如果没有找到前一个条件节点，不渲染
+    if (!shouldRender) {
+      return null
     }
+  }
+
+  // 🔍 查找组件
+  let foundComponent = null
   
-    // 处理组件
-    if (foundComponent) {
-      const componentProps: Record<string, any> = {}
-      Array.from(el.attributes).forEach(attr => {
-        const name = attr.name
-        const value = attr.value
-        
-        // 处理绑定属性
-        if (name.startsWith(':')) {
-          const propName = name.slice(1)
-          const propValue = evaluateExpression(value, context)
-          if (propName !== 'key') {
-            componentProps[propName] = propValue
-          }
-        }
-        // 处理事件
-        else if (name.startsWith('@')) {
-          const eventName = name.slice(1)
-          const handlerName = value
-          if (context[handlerName]) {
-            componentProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
-          }
-        }
-        // 处理 v-model
-        else if (name === 'v-model') {
-          const modelName = value
-          componentProps.value = context[modelName]
-          componentProps.onInput = (e: any) => {
-            context[modelName] = e.target.value
-          }
-        }
-        // 普通属性
-        else {
-          const interpolatedValue = interpolate(value, context)
-          if (name === 'class') {
-            componentProps.className = interpolatedValue
-          } else {
-            componentProps[name] = interpolatedValue
-          }
-        }
-      })
+  if (components) {
+    for (const [key, value] of Object.entries(components)) {
+      if (key.toUpperCase() === originalTagName) {
+        foundComponent = value
+        break
+      }
+    }
+  }
+
+  // 处理组件
+  if (foundComponent) {
+    const componentProps: Record<string, any> = {}
+    Array.from(el.attributes).forEach(attr => {
+      const name = attr.name
+      const value = attr.value
       
-      return {
-        type: foundComponent,
-        props: componentProps,
-        children: []
+      // 处理绑定属性
+      if (name.startsWith(':')) {
+        const propName = name.slice(1)
+        const propValue = evaluateExpression(value, context)
+        if (propName !== 'key') {
+          componentProps[propName] = propValue
+        }
       }
-    }
-
-    // 处理 Fragment
-    if (tagName === 'fragment') {
-      const children: any[] = []
-      Array.from(el.childNodes).forEach(child => {
-        const vnode = buildVNode(child, context, components)
-        if (vnode) children.push(vnode)
-      })
-      return {
-        type: Fragment,
-        props: {},
-        children
+      // 处理事件
+      else if (name.startsWith('@')) {
+        const eventName = name.slice(1)
+        const handlerName = value
+        if (context[handlerName]) {
+          componentProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
+        }
       }
-    }
-
-    // 处理 template 标签
-    if (tagName === 'template') {
-      // v-if 已在最前面统一处理，这里直接处理子节点
-      const children: any[] = []
-      Array.from(el.childNodes).forEach(child => {
-        const vnode = buildVNode(child, context, components)
-        if (vnode) children.push(vnode)
-      })
-      return {
-        type: Fragment,
-        props: {},
-        children
+      // 处理 v-model
+      else if (name === 'v-model') {
+        const modelName = value
+        componentProps.value = context[modelName]
+        componentProps.onInput = (e: any) => {
+          context[modelName] = e.target.value
+        }
       }
-    }
-
-    // 处理 SVG 元素
-    if (tagName === 'svg') {
-      const namespace = 'http://www.w3.org/2000/svg'
-      const element = document.createElementNS(namespace, 'svg')
-      const svgProps: Record<string, any> = {}
-      
-      Array.from(el.attributes).forEach(attr => {
-        const name = attr.name
-        const value = attr.value
-        
-        if (name.startsWith(':')) {
-          const propName = name.slice(1)
-          const propValue = evaluateExpression(value, context)
-          if (propName !== 'key') {
-            svgProps[propName] = propValue
-          }
-        } else if (name.startsWith('@')) {
-          const eventName = name.slice(1)
-          const handlerExpr = value
-          // 🔥 关键修复：支持函数调用表达式如 goTo(index)
-          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
-            evaluateExpression(handlerExpr, context)
-          }
-        } else if (name === 'v-model') {
-          const modelName = value
-          svgProps.value = context[modelName]
-          svgProps.onInput = (e: any) => {
-            context[modelName] = e.target.value
-          }
+      // 普通属性
+      else {
+        const interpolatedValue = interpolate(value, context)
+        if (name === 'class') {
+          componentProps.className = interpolatedValue
         } else {
-          // 🔥 关键修复：width、height 使用 setAttribute
-          if (name === 'width' || name === 'height') {
-            element.setAttribute(name, value)
-            svgProps[name] = value
-          } else if (name === 'style') {
-            element.setAttribute('style', value)
-            svgProps.style = value
-          } else if (name === 'class') {
-            element.setAttribute('class', value)
-            svgProps.className = value
-          } else if (name.includes(':')) {
-            const [prefix, localName] = name.split(':')
-            if (prefix === 'xlink') {
-              element.setAttributeNS('http://www.w3.org/1999/xlink', localName, value)
-              svgProps[name] = value
-            } else if (prefix === 'xmlns') {
-              element.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, value)
-              svgProps[name] = value
-            } else {
-              element.setAttributeNS(namespace, localName, value)
-              svgProps[name] = value
-            }
-          } else {
-            element.setAttributeNS(namespace, name, value)
-            svgProps[name] = value
-          }
+          componentProps[name] = interpolatedValue
         }
-      })
-
-      const children: any[] = []
-      Array.from(el.childNodes).forEach(child => {
-        const vnode = buildVNode(child, context, components)
-        if (vnode) children.push(vnode)
-      })
-
-      return {
-        type: tagName,
-        props: svgProps,
-        children,
-        el: element
       }
+    })
+    
+    return {
+      type: foundComponent,
+      props: componentProps,
+      children: []
     }
+  }
 
-    // 处理 SVG 子元素
-    if (isSvgChild(el)) {
-      const namespace = 'http://www.w3.org/2000/svg'
-      const element = document.createElementNS(namespace, tagName)
-      const svgProps: Record<string, any> = {}
-      
-      Array.from(el.attributes).forEach(attr => {
-        const name = attr.name
-        const value = attr.value
-        
-        if (name.startsWith(':')) {
-          const propName = name.slice(1)
-          const propValue = evaluateExpression(value, context)
-          if (propName !== 'key') {
-            svgProps[propName] = propValue
-          }
-        } else if (name.startsWith('@')) {
-          const eventName = name.slice(1)
-          const handlerExpr = value
-          // 🔥 关键修复：支持函数调用表达式如 goTo(index)
-          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
-            evaluateExpression(handlerExpr, context)
-          }
-        } else if (name === 'v-model') {
-          const modelName = value
-          svgProps.value = context[modelName]
-          svgProps.onInput = (e: any) => {
-            context[modelName] = e.target.value
-          }
-        } else {
-          // 🔥 关键修复：width、height 使用 setAttribute
-          if (name === 'width' || name === 'height') {
-            element.setAttribute(name, value)
-            svgProps[name] = value
-          } else if (name === 'style') {
-            element.setAttribute('style', value)
-            svgProps.style = value
-          } else if (name === 'class') {
-            element.setAttribute('class', value)
-            svgProps.className = value
-          } else if (name.includes(':')) {
-            const [prefix, localName] = name.split(':')
-            if (prefix === 'xlink') {
-              element.setAttributeNS('http://www.w3.org/1999/xlink', localName, value)
-              svgProps[name] = value
-            } else if (prefix === 'xmlns') {
-              element.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, value)
-              svgProps[name] = value
-            } else {
-              element.setAttributeNS(namespace, localName, value)
-              svgProps[name] = value
-            }
-          } else {
-            element.setAttributeNS(namespace, name, value)
-            svgProps[name] = value
-          }
-        }
-      })
-
-      const children: any[] = []
-      Array.from(el.childNodes).forEach(child => {
-        const vnode = buildVNode(child, context, components)
-        if (vnode) children.push(vnode)
-      })
-
-      return {
-        type: tagName,
-        props: svgProps,
-        children,
-        el: element
-      }
+  // 处理 Fragment
+  if (tagName === 'fragment') {
+    const children: any[] = []
+    Array.from(el.childNodes).forEach(child => {
+      const vnode = buildVNode(child, context, components)
+      if (vnode) children.push(vnode)
+    })
+    return {
+      type: Fragment,
+      props: {},
+      children
     }
+  }
 
-    // 处理普通 HTML 元素
-    const elementProps: Record<string, any> = {}
+  // 处理 template 标签
+  if (tagName === 'template') {
+    // v-if 已在最前面统一处理，这里直接处理子节点
+    const children: any[] = []
+    Array.from(el.childNodes).forEach(child => {
+      const vnode = buildVNode(child, context, components)
+      if (vnode) children.push(vnode)
+    })
+    return {
+      type: Fragment,
+      props: {},
+      children
+    }
+  }
+
+  // 处理 SVG 元素
+  if (tagName === 'svg') {
+    const namespace = 'http://www.w3.org/2000/svg'
+    const element = document.createElementNS(namespace, 'svg')
+    const svgProps: Record<string, any> = {}
     
     Array.from(el.attributes).forEach(attr => {
       const name = attr.name
@@ -414,34 +303,47 @@ export function buildVNode(element: Element | Node, context: any, components?: R
         const propName = name.slice(1)
         const propValue = evaluateExpression(value, context)
         if (propName !== 'key') {
-          elementProps[propName] = propValue
+          svgProps[propName] = propValue
         }
       } else if (name.startsWith('@')) {
         const eventName = name.slice(1)
         const handlerExpr = value
         // 🔥 关键修复：支持函数调用表达式如 goTo(index)
-        elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+        svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
           evaluateExpression(handlerExpr, context)
         }
       } else if (name === 'v-model') {
         const modelName = value
-        elementProps.value = context[modelName]
-        elementProps.onInput = (e: any) => {
+        svgProps.value = context[modelName]
+        svgProps.onInput = (e: any) => {
           context[modelName] = e.target.value
         }
       } else {
-        // 🔥 关键修复：width、height 不插值
+        // 🔥 关键修复：width、height 使用 setAttribute
         if (name === 'width' || name === 'height') {
-          elementProps[name] = value
+          element.setAttribute(name, value)
+          svgProps[name] = value
         } else if (name === 'style') {
-          elementProps.style = value
-        } else {
-          const interpolatedValue = interpolate(value, context)
-          if (name === 'class') {
-            elementProps.className = interpolatedValue
+          element.setAttribute('style', value)
+          svgProps.style = value
+        } else if (name === 'class') {
+          element.setAttribute('class', value)
+          svgProps.className = value
+        } else if (name.includes(':')) {
+          const [prefix, localName] = name.split(':')
+          if (prefix === 'xlink') {
+            element.setAttributeNS('http://www.w3.org/1999/xlink', localName, value)
+            svgProps[name] = value
+          } else if (prefix === 'xmlns') {
+            element.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, value)
+            svgProps[name] = value
           } else {
-            elementProps[name] = interpolatedValue
+            element.setAttributeNS(namespace, localName, value)
+            svgProps[name] = value
           }
+        } else {
+          element.setAttributeNS(namespace, name, value)
+          svgProps[name] = value
         }
       }
     })
@@ -454,10 +356,137 @@ export function buildVNode(element: Element | Node, context: any, components?: R
 
     return {
       type: tagName,
-      props: elementProps,
-      children
+      props: svgProps,
+      children,
+      el: element
     }
   }
 
-  return null
+  // 处理 SVG 子元素
+  if (isSvgChild(el)) {
+    const namespace = 'http://www.w3.org/2000/svg'
+    const element = document.createElementNS(namespace, tagName)
+    const svgProps: Record<string, any> = {}
+    
+    Array.from(el.attributes).forEach(attr => {
+      const name = attr.name
+      const value = attr.value
+      
+      if (name.startsWith(':')) {
+        const propName = name.slice(1)
+        const propValue = evaluateExpression(value, context)
+        if (propName !== 'key') {
+          svgProps[propName] = propValue
+        }
+      } else if (name.startsWith('@')) {
+        const eventName = name.slice(1)
+        const handlerExpr = value
+        // 🔥 关键修复：支持函数调用表达式如 goTo(index)
+        svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+          evaluateExpression(handlerExpr, context)
+        }
+      } else if (name === 'v-model') {
+        const modelName = value
+        svgProps.value = context[modelName]
+        svgProps.onInput = (e: any) => {
+          context[modelName] = e.target.value
+        }
+      } else {
+        // 🔥 关键修复：width、height 使用 setAttribute
+        if (name === 'width' || name === 'height') {
+          element.setAttribute(name, value)
+          svgProps[name] = value
+        } else if (name === 'style') {
+          element.setAttribute('style', value)
+          svgProps.style = value
+        } else if (name === 'class') {
+          element.setAttribute('class', value)
+          svgProps.className = value
+        } else if (name.includes(':')) {
+          const [prefix, localName] = name.split(':')
+          if (prefix === 'xlink') {
+            element.setAttributeNS('http://www.w3.org/1999/xlink', localName, value)
+            svgProps[name] = value
+          } else if (prefix === 'xmlns') {
+            element.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, value)
+            svgProps[name] = value
+          } else {
+            element.setAttributeNS(namespace, localName, value)
+            svgProps[name] = value
+          }
+        } else {
+          element.setAttributeNS(namespace, name, value)
+          svgProps[name] = value
+        }
+      }
+    })
+
+    const children: any[] = []
+    Array.from(el.childNodes).forEach(child => {
+      const vnode = buildVNode(child, context, components)
+      if (vnode) children.push(vnode)
+    })
+
+    return {
+      type: tagName,
+      props: svgProps,
+      children,
+      el: element
+    }
+  }
+
+  // 处理普通 HTML 元素
+  const elementProps: Record<string, any> = {}
+  
+  Array.from(el.attributes).forEach(attr => {
+    const name = attr.name
+    const value = attr.value
+    
+    if (name.startsWith(':')) {
+      const propName = name.slice(1)
+      const propValue = evaluateExpression(value, context)
+      if (propName !== 'key') {
+        elementProps[propName] = propValue
+      }
+    } else if (name.startsWith('@')) {
+      const eventName = name.slice(1)
+      const handlerExpr = value
+      // 🔥 关键修复：支持函数调用表达式如 goTo(index)
+      elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+        evaluateExpression(handlerExpr, context)
+      }
+    } else if (name === 'v-model') {
+      const modelName = value
+      elementProps.value = context[modelName]
+      elementProps.onInput = (e: any) => {
+        context[modelName] = e.target.value
+      }
+    } else {
+      // 🔥 关键修复：width、height 不插值
+      if (name === 'width' || name === 'height') {
+        elementProps[name] = value
+      } else if (name === 'style') {
+        elementProps.style = value
+      } else {
+        const interpolatedValue = interpolate(value, context)
+        if (name === 'class') {
+          elementProps.className = interpolatedValue
+        } else {
+          elementProps[name] = interpolatedValue
+        }
+      }
+    }
+  })
+
+  const children: any[] = []
+  Array.from(el.childNodes).forEach(child => {
+    const vnode = buildVNode(child, context, components)
+    if (vnode) children.push(vnode)
+  })
+
+  return {
+    type: tagName,
+    props: elementProps,
+    children
+  }
 }

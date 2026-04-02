@@ -9,10 +9,10 @@ import { buildVNode } from './buildVNode'
 export function createRuntimeCompiler(template: string, components?: Record<string, any>): (context: any) => VNode {
   // 🔍 模板预处理：将自闭合的自定义组件标签转换为标准双标签
   let processedTemplate = template
-  
+
   if (components) {
     const componentNames = Object.keys(components)
-    
+
     componentNames.forEach(compName => {
       const selfClosingRegex = new RegExp(`<(${compName})([^>]*)\\s*/>`, 'gi')
       processedTemplate = processedTemplate.replace(selfClosingRegex, `<$1$2></$1>`)
@@ -32,12 +32,12 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
     ? rootElement.firstElementChild
     : rootElement
 
-  return function(props: any, setupState?: any): VNode {
+  return function (props: any, setupState?: any): VNode {
     const context = { ...props, ...(setupState || {}) }
-    
+
     const children: any[] = []
-    
-    Array.from(actualRoot.childNodes).forEach((child) => {
+
+    Array.from(actualRoot.childNodes).forEach((child, index) => {
       const vnode = buildVNode(child, context, components)
       if (vnode) {
         children.push(vnode)

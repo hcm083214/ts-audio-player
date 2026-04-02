@@ -1,10 +1,10 @@
-import { effect, reactive, activeEffect, triggerMounted } from './reactive'
-import { VNode, Component, ComponentInstance } from './types'
+import { effect, reactive, triggerUnmounted, triggerMounted } from './reactive'
+import { VNode, Component, ComponentInstance, Fragment } from './types'
 import { mount } from './mount'
 import { patch } from './patch'
 
 // 🔥 关键修复：使用 WeakMap 存储 component 到 instance 的映射
-const componentInstanceMap = new WeakMap<Component, ComponentInstance>()
+export const componentInstanceMap = new WeakMap<Component, ComponentInstance>()
 
 /**
  * 挂载组件
@@ -14,15 +14,10 @@ const componentInstanceMap = new WeakMap<Component, ComponentInstance>()
 export function mountComponent(vnode: VNode, container: Element): void {
   const component = vnode.type as Component
   
-  // 🔥 检查该 component 是否已经挂载过
-  if (componentInstanceMap.has(component)) {
-    // console.log('✅ [mountComponent] 组件已存在，跳过挂载')
-    return
-  }
+  // 🔥 关键修复：不再检查 componentInstanceMap，允许同一个组件定义被多次挂载
+  // 每个 v-for 生成的 vnode 都应该独立挂载
   
   const props = vnode.props || {}
-  
-  // console.log('🔵 [mountComponent] 开始挂载组件')
   
   const instance: ComponentInstance = {
     vnode,
@@ -38,7 +33,6 @@ export function mountComponent(vnode: VNode, container: Element): void {
   
   if (component.setup) {
     instance.setupState = component.setup(instance.props)
-    // console.log('🔵 [mountComponent] setupState:', instance.setupState)
   }
 
   // 优先使用 render 函数，如果没有则尝试从 template 编译

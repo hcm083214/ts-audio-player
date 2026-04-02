@@ -14,7 +14,6 @@ const BannerComponent = {
     
     // 切换到指定索引
     function goTo(index: number) {
-      console.log("🚀 ~ goTo ~ index:", index)
       activeIndex.value = index
     }
     
