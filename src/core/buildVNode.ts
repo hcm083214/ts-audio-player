@@ -275,9 +275,10 @@ export function buildVNode(element: Element | Node, context: any, components?: R
           }
         } else if (name.startsWith('@')) {
           const eventName = name.slice(1)
-          const handlerName = value
-          if (context[handlerName]) {
-            svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
+          const handlerExpr = value
+          // 🔥 关键修复：支持函数调用表达式如 goTo(index)
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+            evaluateExpression(handlerExpr, context)
           }
         } else if (name === 'v-model') {
           const modelName = value
@@ -347,9 +348,10 @@ export function buildVNode(element: Element | Node, context: any, components?: R
           }
         } else if (name.startsWith('@')) {
           const eventName = name.slice(1)
-          const handlerName = value
-          if (context[handlerName]) {
-            svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
+          const handlerExpr = value
+          // 🔥 关键修复：支持函数调用表达式如 goTo(index)
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+            evaluateExpression(handlerExpr, context)
           }
         } else if (name === 'v-model') {
           const modelName = value
@@ -416,9 +418,10 @@ export function buildVNode(element: Element | Node, context: any, components?: R
         }
       } else if (name.startsWith('@')) {
         const eventName = name.slice(1)
-        const handlerName = value
-        if (context[handlerName]) {
-          elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
+        const handlerExpr = value
+        // 🔥 关键修复：支持函数调用表达式如 goTo(index)
+        elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+          evaluateExpression(handlerExpr, context)
         }
       } else if (name === 'v-model') {
         const modelName = value

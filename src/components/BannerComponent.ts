@@ -14,6 +14,7 @@ const BannerComponent = {
     
     // 切换到指定索引
     function goTo(index: number) {
+      console.log("🚀 ~ goTo ~ index:", index)
       activeIndex.value = index
     }
     
@@ -143,18 +144,14 @@ const BannerComponent = {
           <span
             v-for="(banner, index) in bannerLists"
             :key="'indicator-' + banner.id"
-            class="block bg-slate-100 h-2 rounded-full transition-all duration-300"
+            class="cursor-pointer block bg-slate-100 h-2 rounded-full transition-all duration-300"
             :style="getIndicatorStyle(index)"
+            @click="goTo(index)"
           >
           </span>
         </div>
       </div>
       
-      <!-- 底部文字说明 -->
-      <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
-        <h2 class="text-white text-2xl font-bold">欢迎来到网易云音乐</h2>
-        <p class="text-white/80 mt-2">发现好音乐，从这里开始</p>
-      </div>
     </div>
   `
 }
