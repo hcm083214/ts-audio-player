@@ -1,4 +1,4 @@
-import { VNode, ComponentInstance } from './types'
+import { VNode, ComponentInstance, Fragment } from './types'
 import { reactive, triggerUnmounted } from './reactive'
 import { mount } from './mount'
 import { patchProp } from './patchProp'
@@ -58,6 +58,77 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
     
     // 更新 component 的 subTree
     component.subTree = subTree
+    
+    return
+  }
+
+  // 🔥 关键修复：处理 Fragment 节点
+  if (oldVnode.type === Fragment) {
+    // Fragment 没有实际的 DOM 元素，直接更新子节点
+    const oldChildren = Array.isArray(oldVnode.children) ? oldVnode.children : []
+    const newChildren = Array.isArray(newVnode.children) ? newVnode.children : []
+    
+    // Fragment 使用父容器的引用
+    const container = oldVnode.el as any as Element
+    
+    const minLength = Math.min(oldChildren.length, newChildren.length)
+
+    for (let i = 0; i < minLength; i++) {
+      const oldChild = oldChildren[i]
+      const newChild = newChildren[i]
+      
+      // 处理字符串类型的子节点
+      if (typeof oldChild === 'string' && typeof newChild === 'string') {
+        if (oldChild !== newChild) {
+          const textNode = document.createTextNode(newChild)
+          const oldTextNode = container.childNodes[i]
+          if (oldTextNode.nodeType === Node.TEXT_NODE) {
+            container.replaceChild(textNode, oldTextNode)
+          }
+        }
+      } else if (typeof oldChild === 'string' && typeof newChild !== 'string') {
+        const oldTextNode = container.childNodes[i]
+        if (oldTextNode.nodeType === Node.TEXT_NODE) {
+          container.removeChild(oldTextNode)
+        }
+        mount(newChild, container)
+      } else if (typeof oldChild !== 'string' && typeof newChild === 'string') {
+        const textNode = document.createTextNode(newChild)
+        const oldEl = (oldChild as VNode).el
+        if (oldEl) {
+          container.replaceChild(textNode, oldEl)
+        }
+      } else {
+        patch(oldChild as VNode, newChild as VNode)
+      }
+    }
+
+    // 添加新子节点
+    if (newChildren.length > oldChildren.length) {
+      for (let i = minLength; i < newChildren.length; i++) {
+        const newChild = newChildren[i]
+        if (typeof newChild === 'string') {
+          container.appendChild(document.createTextNode(newChild))
+        } else {
+          mount(newChild, container)
+        }
+      }
+    }
+
+    // 移除旧子节点
+    if (newChildren.length < oldChildren.length) {
+      for (let i = minLength; i < oldChildren.length; i++) {
+        const oldChild = oldChildren[i]
+        if (typeof oldChild === 'string') {
+          const textNode = container.childNodes[i]
+          if (textNode.nodeType === Node.TEXT_NODE) {
+            container.removeChild(textNode)
+          }
+        } else if ((oldChild as VNode).el) {
+          container.removeChild((oldChild as VNode).el!)
+        }
+      }
+    }
     
     return
   }

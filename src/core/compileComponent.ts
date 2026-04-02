@@ -1,4 +1,4 @@
-import { VNode } from './types'
+import { VNode, Fragment } from './types'
 import { buildVNode } from './buildVNode'
 
 /**
@@ -48,8 +48,10 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
       return children[0]
     }
 
+    // 🔥 关键修复：Fragment 不应该被渲染为真实 DOM，直接返回子节点数组
+    // 使用 Fragment 符号而不是字符串 'fragment'
     return {
-      type: 'fragment' as any,
+      type: Fragment as any,
       props: {},
       children
     }

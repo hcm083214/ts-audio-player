@@ -58,7 +58,7 @@ const HomePageComponent = {
     PlayerBarComponent
   },
   template: `
-    <Fragment>
+    <div>
       <HeaderComponent />
       
       <!-- 主内容区 -->
@@ -116,7 +116,7 @@ const HomePageComponent = {
 
       <!-- 底部播放栏 -->
       <PlayerBarComponent />
-    </Fragment>
+    </div>
   `
 }
 
