@@ -1,8 +1,8 @@
 import { compileComponent } from '../core/template-compiler'
 
 const SongListComponent = {
-  setup() {
-    const songs: any[] = []
+  setup(props:{songs: any[]}) {
+    const songs: any[] = props.songs
     return { songs }
   },
   props: ['songs'],

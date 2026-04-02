@@ -2,8 +2,8 @@ import { h } from '../core/renderer'
 import { compileComponent } from '../core/template-compiler'
 
 const ArtistCardComponent = {
-  setup() {
-    const artist: any = {}
+  setup(props:{artist: any}) {
+    const artist: any = props.artist
     return { artist }
   },
   props: ['artist'],
