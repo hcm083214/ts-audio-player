@@ -108,8 +108,10 @@ class RefImpl<T> {
 
   set value(newValue: T) {
     const oldValue = this._value
-    this._value = newValue
-    trigger(this, 'value')
+    if (oldValue !== newValue) {
+      this._value = newValue
+      trigger(this, 'value')
+    }
   }
 }
 

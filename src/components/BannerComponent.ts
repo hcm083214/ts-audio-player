@@ -1,5 +1,5 @@
 import { h } from '../core/renderer'
-import { compileComponent } from '../core/template-compiler'
+import { compileComponent } from '../core/compileComponent'
 import { ref, onMounted, onUnmounted } from '../core/reactive'
 
 const BannerComponent = {
@@ -10,15 +10,17 @@ const BannerComponent = {
     let timer: any = null
     
     // 轮播图数据
-    const bannerLists = props.playlists.slice(0, 5)
+    const bannerLists = (props.playlists || []).slice(0, 5)
     
     // 切换到指定索引
     function goTo(index: number) {
+      console.log("🚀 ~ goTo ~ index:", index)
       activeIndex.value = index
     }
     
     // 上一张
     function prev() {
+      console.log('prev')
       const newIndex = activeIndex.value - 1
       if (newIndex < 0) {
         goTo(bannerLists.length - 1)
@@ -29,6 +31,7 @@ const BannerComponent = {
     
     // 下一张
     function next() {
+      console.log('next')
       const newIndex = activeIndex.value + 1
       if (newIndex >= bannerLists.length) {
         goTo(0)
@@ -53,20 +56,24 @@ const BannerComponent = {
       }
     }
     
+    // 获取容器样式 - 🔥 关键：确保响应式依赖被收集
+    function getContainerStyle() {
+      const offset = activeIndex.value * 100
+      console.log('🎯 getContainerStyle ~ offset:', offset, 'activeIndex:', activeIndex.value)
+      const style = {
+        transform: `translateX(-${offset}%)`
+      }
+      console.log('  返回样式对象:', style, '引用地址:', style)
+      return style
+    }
+    
+    
     // 获取指示器样式
     function getIndicatorStyle(index: number) {
       const isActive = index === activeIndex.value
       return {
         width: isActive ? '2rem' : '0.5rem',
         backgroundColor: isActive ? 'rgb(255, 255, 255)' : 'rgba(255, 255, 255, 0.5)'
-      }
-    }
-    
-    // 获取图片样式
-    function getImageStyle(index: number) {
-      const isActive = index === activeIndex.value
-      return {
-        opacity: isActive ? 1 : 0
       }
     }
     
@@ -88,8 +95,8 @@ const BannerComponent = {
       goTo,
       startAutoPlay,
       stopAutoPlay,
+      getContainerStyle,
       getIndicatorStyle,
-      getImageStyle
     }
   },
   props: ['playlists'],
@@ -99,14 +106,16 @@ const BannerComponent = {
       @mouseenter="stopAutoPlay"
       @mouseleave="startAutoPlay"
     >
-      <!-- 轮播图列表 - 直接渲染所有图片，通过 opacity 控制显示 -->
-      <div class="relative w-full h-full">
-        <!-- 所有图片层叠在一起，通过 opacity 控制可见性 -->
+      <!-- 轮播图容器 - 使用 transform 横向滚动 -->
+      <div 
+        class="flex h-full transition-transform duration-500 ease-in-out"
+        :style="getContainerStyle()"
+      >
+        <!-- 所有图片横向排列 -->
         <div
           v-for="(banner, index) in bannerLists"
           :key="banner.id"
-          class="absolute inset-0 transition-opacity duration-500 ease-in-out"
-          :style="getImageStyle(index)"
+          class="flex-shrink-0 w-full h-full relative"
         >
           <img
             :src="banner.picUrl"

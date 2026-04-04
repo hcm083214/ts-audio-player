@@ -2,7 +2,6 @@ import { VNode, ComponentInstance, Fragment, Component } from './types'
 import { reactive, triggerUnmounted } from './reactive'
 import { mount } from './mount'
 import { patchProp } from './patchProp'
-import { componentInstanceMap } from './mountComponent'
 
 /**
  * 更新虚拟 DOM
@@ -32,27 +31,15 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
 
   // 🔥 修复组件更新逻辑：当检测到是组件时，需要触发重新渲染
   if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
-    const component = oldVnode.type as Component
-    const instance = componentInstanceMap.get(component)
+    const instance = oldVnode.component
     
     if (!instance) {
-      console.error('Component instance not found in componentInstanceMap')
+      console.error('Component instance not found in vnode.component')
       return
     }
     
-    // 🔥 关键修复：重新执行 render 函数来触发响应式更新
-    // 这会重新收集依赖并触发受影响的 effect
-    const subTree = instance.render(instance.props, instance.setupState)
-    
-    // patch 新旧子树
-    patch(instance.subTree!, subTree)
-    
-    // 更新 VNode 的子树引用和 el 引用
-    oldVnode.el = subTree.el
-    newVnode.el = subTree.el
-    
-    // 更新 component 的 subTree
-    instance.subTree = subTree
+    // 组件更新由 effect 函数处理，不需要手动调用 render 函数
+    // 响应式系统会自动检测到数据变化并重新执行 effect 函数
     
     return
   }

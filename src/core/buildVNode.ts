@@ -104,13 +104,21 @@ export function buildVNode(element: Element | Node, context: any, components?: R
       arrayExpr = array
     } else {
       console.error('Invalid v-for expression:', forExpr)
-      return null
+      return {
+        type: Fragment as any,
+        props: {},
+        children: []
+      }
     }
     const array = evaluateExpression(arrayExpr.trim(), context)
     
     if (!Array.isArray(array)) {
       console.error('v-for expects an array but got:', typeof array)
-      return null
+      return {
+        type: Fragment as any,
+        props: {},
+        children: []
+      }
     }
     
     // 🔥 关键修改：克隆元素及其子节点
@@ -308,9 +316,35 @@ export function buildVNode(element: Element | Node, context: any, components?: R
       } else if (name.startsWith('@')) {
         const eventName = name.slice(1)
         const handlerExpr = value
-        // 🔥 关键修复：支持函数调用表达式如 goTo(index)
-        svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
-          evaluateExpression(handlerExpr, context)
+        // 🔥 关键修复：支持函数调用表达式如 goTo(index) 和简单函数名如 prev
+        const isSimpleCall = handlerExpr.match(/^(\w+)\(\)$/)  // prev() 形式
+        const isParameterizedCall = handlerExpr.match(/^(\w+)\(([^)]*)\)$/)  // goTo(index) 形式
+        const isFunctionName = /^\w+$/.test(handlerExpr)  // 简单函数名形式，如 prev
+        
+        if (isSimpleCall) {
+          // 简单调用：直接使用 context 中的函数引用
+          const funcName = isSimpleCall[1]
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[funcName]
+        } else if (isParameterizedCall) {
+          // 带参数调用：需要包装函数传递参数
+          const funcName = isParameterizedCall[1]
+          const paramNames = isParameterizedCall[2].split(',').map(p => p.trim())
+          
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = (...args: any[]) => {
+            const func = context[funcName]
+            if (typeof func === 'function') {
+              // 将参数传递给函数
+              return func.apply(context, args.length > 0 ? args : paramNames.map(p => context[p]))
+            }
+          }
+        } else if (isFunctionName) {
+          // 简单函数名：直接使用 context 中的函数引用
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerExpr]
+        } else {
+          // 复杂表达式：使用原来的 evaluateExpression
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+            evaluateExpression(handlerExpr, context)
+          }
         }
       } else if (name === 'v-model') {
         const modelName = value
@@ -381,9 +415,35 @@ export function buildVNode(element: Element | Node, context: any, components?: R
       } else if (name.startsWith('@')) {
         const eventName = name.slice(1)
         const handlerExpr = value
-        // 🔥 关键修复：支持函数调用表达式如 goTo(index)
-        svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
-          evaluateExpression(handlerExpr, context)
+        // 🔥 关键修复：支持函数调用表达式如 goTo(index) 和简单函数名如 prev
+        const isSimpleCall = handlerExpr.match(/^(\w+)\(\)$/)  // prev() 形式
+        const isParameterizedCall = handlerExpr.match(/^(\w+)\(([^)]*)\)$/)  // goTo(index) 形式
+        const isFunctionName = /^\w+$/.test(handlerExpr)  // 简单函数名形式，如 prev
+        
+        if (isSimpleCall) {
+          // 简单调用：直接使用 context 中的函数引用
+          const funcName = isSimpleCall[1]
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[funcName]
+        } else if (isParameterizedCall) {
+          // 带参数调用：需要包装函数传递参数
+          const funcName = isParameterizedCall[1]
+          const paramNames = isParameterizedCall[2].split(',').map(p => p.trim())
+          
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = (...args: any[]) => {
+            const func = context[funcName]
+            if (typeof func === 'function') {
+              // 将参数传递给函数
+              return func.apply(context, args.length > 0 ? args : paramNames.map(p => context[p]))
+            }
+          }
+        } else if (isFunctionName) {
+          // 简单函数名：直接使用 context 中的函数引用
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerExpr]
+        } else {
+          // 复杂表达式：使用原来的 evaluateExpression
+          svgProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+            evaluateExpression(handlerExpr, context)
+          }
         }
       } else if (name === 'v-model') {
         const modelName = value
@@ -449,12 +509,40 @@ export function buildVNode(element: Element | Node, context: any, components?: R
         elementProps[propName] = propValue
       }
     } else if (name.startsWith('@')) {
-      const eventName = name.slice(1)
-      const handlerExpr = value
-      // 🔥 关键修复：支持函数调用表达式如 goTo(index)
-      elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
-        evaluateExpression(handlerExpr, context)
-      }
+        const eventName = name.slice(1)
+        const handlerExpr = value
+        
+        // 🔥 关键修复：直接从 context 获取函数，避免每次都创建新的包装函数
+        // 检查是否是简单的函数调用（如 prev()、next()）或带参数的调用（如 goTo(index)）
+        const isSimpleCall = handlerExpr.match(/^(\w+)\(\)$/)  // prev() 形式
+        const isParameterizedCall = handlerExpr.match(/^(\w+)\(([^)]*)\)$/)  // goTo(index) 形式
+        const isFunctionName = /^\w+$/.test(handlerExpr)  // 简单函数名形式，如 prev
+        
+        if (isSimpleCall) {
+          // 简单调用：直接使用 context 中的函数引用
+          const funcName = isSimpleCall[1]
+          elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[funcName]
+        } else if (isParameterizedCall) {
+          // 带参数调用：需要包装函数传递参数
+          const funcName = isParameterizedCall[1]
+          const paramNames = isParameterizedCall[2].split(',').map(p => p.trim())
+          
+          elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = (...args: any[]) => {
+            const func = context[funcName]
+            if (typeof func === 'function') {
+              // 将参数传递给函数
+              return func.apply(context, args.length > 0 ? args : paramNames.map(p => context[p]))
+            }
+          }
+        } else if (isFunctionName) {
+          // 简单函数名：直接使用 context 中的函数引用
+          elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerExpr]
+        } else {
+          // 复杂表达式：使用原来的 evaluateExpression
+          elementProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = () => {
+            evaluateExpression(handlerExpr, context)
+          }
+        }
     } else if (name === 'v-model') {
       const modelName = value
       elementProps.value = context[modelName]

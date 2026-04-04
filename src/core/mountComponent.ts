@@ -3,8 +3,7 @@ import { VNode, Component, ComponentInstance, Fragment } from './types'
 import { mount } from './mount'
 import { patch } from './patch'
 
-// 🔥 关键修复：使用 WeakMap 存储 component 到 instance 的映射
-export const componentInstanceMap = new WeakMap<Component, ComponentInstance>()
+// 不再需要使用 WeakMap 存储 component 到 instance 的映射，直接使用 vnode.component 访问
 
 /**
  * 挂载组件
@@ -29,7 +28,6 @@ export function mountComponent(vnode: VNode, container: Element): void {
   }
 
   vnode.component = instance
-  componentInstanceMap.set(component, instance)
   
   if (component.setup) {
     instance.setupState = component.setup(instance.props)

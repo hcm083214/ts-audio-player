@@ -6,7 +6,7 @@ import { buildVNode } from './buildVNode'
  * @param template 模板字符串
  * @param components 组件映射
  */
-export function createRuntimeCompiler(template: string, components?: Record<string, any>): (context: any) => VNode {
+export function createRuntimeCompiler(template: string, components?: Record<string, any>): (props: any, setupState?: any) => VNode {
   // 🔍 模板预处理：将自闭合的自定义组件标签转换为标准双标签
   let processedTemplate = template
 

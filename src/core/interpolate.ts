@@ -22,35 +22,42 @@ export function interpolate(str: string, context: any): string {
  * @param expr 表达式字符串
  * @param context 上下文对象
  */
+
 export function evaluateExpression(expr: string, context: any): any {
   try {
-    // 获取所有键并创建局部变量声明
-    const keys = Object.keys(context)
     
-    // 在 map 中访问 context[key] 时，如果是 RefImpl 则立即访问 .value 触发 getter
-    const values = keys.map(key => {
-      const value = context[key]
-      // 如果是 RefImpl，立即访问 .value 触发 getter 进行依赖收集
-      if (value && typeof value === 'object' && '_value' in value) {
-        return value.value  // 这会触发 RefImpl.get！
+    // 使用 Function 构造函数创建一个函数，将上下文作为参数传递
+    // 这样可以确保依赖收集能够正确进行，同时避免使用 with 语句
+    const fn = new Function('context', `
+      return function() {
+        // 定义一个变量来存储结果
+        let result;
+        
+        // 尝试执行表达式
+        try {
+          // 使用 context 作为作用域
+          result = context.${expr};
+        } catch (e) {
+          // 如果直接访问失败，尝试执行表达式
+          result = eval("(" + expr + ")");
+        }
+        
+        return result;
       }
-      return value
-    })
+    `);
     
-    // 🔥 关键修复：添加全局对象支持（Math、JSON、Date 等）
-    // 创建包含全局对象的扩展上下文
-    const globalKeys = ['Math', 'JSON', 'Date', 'Number', 'String', 'Boolean', 'Array', 'Object']
-    const allKeys = [...keys, ...globalKeys]
-    const globalValues = globalKeys.map(key => (window as any)[key])
-    const allValues = [...values, ...globalValues]
+    // 调用函数，获取结果
+    const result = fn(context)();
     
-    // 创建函数：function(playlists, topSongs, ..., Math, JSON, ...) { return (expr) }
-    const fn = new Function(...allKeys, `"use strict"; return (${expr})`)
-    const result = fn(...allValues)
+    // 🔥 关键修复：如果结果是 RefImpl 对象，返回它的 .value 属性
+    // 这样在布尔上下文中会正确评估 ref 的值
+    if (result && typeof result === 'object' && '_value' in result) {
+      return result.value;
+    }
     
-    return result
+    return result;
   } catch (e) {
-    console.warn('Expression evaluation error:', expr, e)
-    return undefined
+    console.warn('Expression evaluation error:', expr, e);
+    return undefined;
   }
 }
