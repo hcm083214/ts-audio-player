@@ -29,18 +29,30 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
     return
   }
 
-  // 🔥 修复组件更新逻辑：当检测到是组件时，需要触发重新渲染
+// 🔥 修复组件更新逻辑：当检测到是组件时，需要同步 props 并交由 effect 重新渲染
   if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
     const instance = oldVnode.component
-    
+
     if (!instance) {
       console.error('Component instance not found in vnode.component')
       return
     }
-    
+
+    const newProps = newVnode.props || {}
+    const oldProps = oldVnode.props || {}
+
+    // 同步 props 到响应式实例 props
+    Object.keys({ ...oldProps, ...newProps }).forEach(key => {
+      if (newProps[key] === undefined) {
+        delete instance.props[key]
+      } else {
+        instance.props[key] = newProps[key]
+      }
+    })
+
+    newVnode.component = instance
+
     // 组件更新由 effect 函数处理，不需要手动调用 render 函数
-    // 响应式系统会自动检测到数据变化并重新执行 effect 函数
-    
     return
   }
 
