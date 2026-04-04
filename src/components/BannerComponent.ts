@@ -106,6 +106,7 @@ const BannerComponent = {
       @mouseenter="stopAutoPlay"
       @mouseleave="startAutoPlay"
     >
+      {{activeIndex}}
       <!-- 轮播图容器 - 使用 transform 横向滚动 -->
       <div 
         class="flex h-full transition-transform duration-500 ease-in-out"

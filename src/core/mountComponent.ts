@@ -3,8 +3,6 @@ import { VNode, Component, ComponentInstance, Fragment } from './types'
 import { mount } from './mount'
 import { patch } from './patch'
 
-// 不再需要使用 WeakMap 存储 component 到 instance 的映射，直接使用 vnode.component 访问
-
 /**
  * 挂载组件
  * @param vnode 虚拟 DOM 节点
@@ -53,7 +51,17 @@ export function mountComponent(vnode: VNode, container: Element): void {
       // 🔥 触发 onMounted 回调
       triggerMounted()
     } else {
+      // 🔥 关键修复：在 patch 之前保存旧 subTree 的 el 引用
+      // 防止新 subTree（尤其是 Fragment）的 el 为 undefined 导致后续更新失效
+      const oldEl = instance.subTree?.el
+      
       patch(instance.subTree!, subTree)
+      
+      // 🔥 关键修复：将旧 el 引用赋给新 subTree，确保后续 patch 能找到容器
+      if (oldEl && !subTree.el) {
+        subTree.el = oldEl
+      }
+      
       instance.subTree = subTree
       vnode.el = subTree.el
     }
