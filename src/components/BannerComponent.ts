@@ -8,35 +8,50 @@ const BannerComponent = {
     const activeIndex = ref(0)
     // 定时器引用
     let timer: any = null
+    // 是否禁用过渡动画
+    const isTransitionDisabled = ref(false)
     
-    // 轮播图数据
-    const bannerLists = (props.playlists || []).slice(0, 5)
+    // 轮播图数据 - 取前5张
+    const originalBanners = (props.playlists || []).slice(0, 5)
+    // 添加第一张的副本到最后，实现无缝循环
+    const bannerLists = [...originalBanners, originalBanners[0]]
     
     // 切换到指定索引
     function goTo(index: number) {
-      console.log("🚀 ~ goTo ~ index:", index)
       activeIndex.value = index
     }
     
     // 上一张
     function prev() {
-      console.log('prev')
-      const newIndex = activeIndex.value - 1
-      if (newIndex < 0) {
-        goTo(bannerLists.length - 1)
+      if (activeIndex.value === 0) {
+        // 如果在第一张，先瞬间跳到最后一张（副本），然后过渡到倒数第二张
+        isTransitionDisabled.value = true
+        activeIndex.value = bannerLists.length - 1
+        setTimeout(() => {
+          isTransitionDisabled.value = false
+          setTimeout(() => {
+            activeIndex.value = bannerLists.length - 2
+          }, 50)
+        }, 50)
       } else {
-        goTo(newIndex)
+        activeIndex.value = activeIndex.value - 1
       }
     }
     
     // 下一张
     function next() {
-      console.log('next')
-      const newIndex = activeIndex.value + 1
-      if (newIndex >= bannerLists.length) {
-        goTo(0)
+      if (activeIndex.value >= bannerLists.length - 1) {
+        // 如果已经在最后一张（副本），先瞬间跳到第一张
+        isTransitionDisabled.value = true
+        activeIndex.value = 0
+        setTimeout(() => {
+          isTransitionDisabled.value = false
+          setTimeout(() => {
+            activeIndex.value = 1
+          }, 50)
+        }, 50)
       } else {
-        goTo(newIndex)
+        activeIndex.value = activeIndex.value + 1
       }
     }
     
@@ -59,18 +74,23 @@ const BannerComponent = {
     // 获取容器样式 - 🔥 关键：确保响应式依赖被收集
     function getContainerStyle() {
       const offset = activeIndex.value * 100
-      console.log('🎯 getContainerStyle ~ offset:', offset, 'activeIndex:', activeIndex.value)
       const style = {
         transform: `translateX(-${offset}%)`
       }
-      console.log('  返回样式对象:', style, '引用地址:', style)
       return style
     }
     
+    // 获取容器类名 - 根据是否禁用过渡动态调整
+    function getContainerClass() {
+      return isTransitionDisabled.value 
+        ? 'flex h-full' 
+        : 'flex h-full transition-transform duration-500 ease-in-out'
+    }
     
     // 获取指示器样式
     function getIndicatorStyle(index: number) {
-      const isActive = index === activeIndex.value
+      // 指示器只显示原始5个，不包括副本
+      const isActive = index === activeIndex.value && index < originalBanners.length
       return {
         width: isActive ? '2rem' : '0.5rem',
         backgroundColor: isActive ? 'rgb(255, 255, 255)' : 'rgba(255, 255, 255, 0.5)'
@@ -89,6 +109,7 @@ const BannerComponent = {
     
     return {
       bannerLists,
+      originalBanners,
       activeIndex,
       prev,
       next,
@@ -96,6 +117,7 @@ const BannerComponent = {
       startAutoPlay,
       stopAutoPlay,
       getContainerStyle,
+      getContainerClass,
       getIndicatorStyle,
     }
   },
@@ -106,16 +128,15 @@ const BannerComponent = {
       @mouseenter="stopAutoPlay"
       @mouseleave="startAutoPlay"
     >
-      {{activeIndex}}
       <!-- 轮播图容器 - 使用 transform 横向滚动 -->
       <div 
-        class="flex h-full transition-transform duration-500 ease-in-out"
+        :class="getContainerClass()"
         :style="getContainerStyle()"
       >
-        <!-- 所有图片横向排列 -->
+        <!-- 所有图片横向排列（包括副本） -->
         <div
           v-for="(banner, index) in bannerLists"
-          :key="banner.id"
+          :key="banner.id + '-' + index"
           class="flex-shrink-0 w-full h-full relative"
         >
           <img
@@ -147,11 +168,11 @@ const BannerComponent = {
         </svg>
       </button>
       
-      <!-- 底部指示器 - 使用动态样式绑定 -->
+      <!-- 底部指示器 - 只显示原始5个，不包括副本 -->
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
         <div class="flex space-x-2">
           <span
-            v-for="(banner, index) in bannerLists"
+            v-for="(banner, index) in originalBanners"
             :key="'indicator-' + banner.id"
             class="cursor-pointer block bg-slate-100 h-2 rounded-full transition-all duration-300"
             :style="getIndicatorStyle(index)"
