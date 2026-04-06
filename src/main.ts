@@ -1,7 +1,7 @@
 import { createRouter } from './router'
 import HomePage from './pages/HomePage'
 import PlayerPage from './pages/PlayerPage'
-import { h } from './core/renderer'
+import { h } from './core'
 
 // 获取应用容器
 const app = document.getElementById('app')

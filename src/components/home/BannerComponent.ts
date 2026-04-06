@@ -1,6 +1,4 @@
-import { h } from '../../core/renderer'
-import { compileComponent } from '../../core/compileComponent'
-import { ref, onMounted, onUnmounted } from '../../core/reactive'
+import { h, compileComponent, ref, onMounted, onUnmounted } from '../../core'
 
 const BannerComponent = {
   setup(props: { playlists: any }) {

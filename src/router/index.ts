@@ -1,4 +1,4 @@
-import { h, render, VNode } from '../core/renderer'
+import { h, render, VNode } from '../core'
 
 // 路由配置类型
 interface RouteConfig {

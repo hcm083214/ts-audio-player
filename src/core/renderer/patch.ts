@@ -1,5 +1,5 @@
 import { VNode, ComponentInstance, Fragment, Component } from './types'
-import { reactive, triggerUnmounted } from './reactive'
+import { reactive, triggerUnmounted } from '../reactivity/reactive'
 import { mount } from './mount'
 import { patchProp } from './patchProp'
 

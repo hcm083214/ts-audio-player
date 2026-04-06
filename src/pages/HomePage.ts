@@ -1,6 +1,4 @@
-import { ref, onMounted } from '../core/reactive'
-import { h, Fragment } from '../core/renderer'
-import { compileComponent } from '../core/template-compiler'
+import { ref, onMounted, h, Fragment, compileComponent } from '../core'
 import * as api from '../api'
 import HeaderComponent from '../components/home/HeaderComponet'
 import BannerComponent from '../components/home/BannerComponent'

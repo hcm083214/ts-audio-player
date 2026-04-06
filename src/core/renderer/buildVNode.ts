@@ -1,5 +1,5 @@
 import { VNode, Fragment } from './types'
-import { interpolate, evaluateExpression } from './interpolate'
+import { interpolate, evaluateExpression } from '../compiler/interpolate'
 
 /**
  * 判断元素是否应该作为 SVG 子元素处理

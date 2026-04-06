@@ -1,5 +1,5 @@
-import { VNode, Fragment } from './types'
-import { buildVNode } from './buildVNode'
+import { VNode, Fragment } from '../renderer/types'
+import { buildVNode } from '../renderer/buildVNode'
 
 /**
  * 运行时模板编译器

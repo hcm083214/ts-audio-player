@@ -1,4 +1,4 @@
-import { effect, reactive, triggerUnmounted, triggerMounted } from './reactive'
+import { effect, reactive, triggerUnmounted, triggerMounted } from '../reactivity/reactive'
 import { VNode, Component, ComponentInstance, Fragment } from './types'
 import { mount } from './mount'
 import { patch } from './patch'

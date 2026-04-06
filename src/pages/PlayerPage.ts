@@ -1,8 +1,6 @@
 // PlayerPage.vue 改造为 JavaScript 对象形式组件
 
-import { ref, computed, onMounted } from '../core/reactive'
-import { h, Fragment } from '../core/renderer'
-import { compileComponent } from '../core/template-compiler'
+import { ref, computed, onMounted, h, Fragment, compileComponent } from '../core'
 import * as api from '../api'
 import PlayerHeaderComponent from '../components/player/PlayerHeaderComponent'
 import AlbumCoverComponent from '../components/player/AlbumCoverComponent'

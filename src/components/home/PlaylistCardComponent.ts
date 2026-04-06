@@ -1,5 +1,4 @@
-import { h } from '../../core/renderer'
-import { compileComponent } from '../../core/template-compiler'
+import { h, compileComponent } from '../../core'
 
 const PlaylistCardComponent = {
   setup(props: { playlist: any }) {
