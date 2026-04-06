@@ -1,4 +1,4 @@
-import { compileComponent } from '../core/template-compiler'
+import { compileComponent } from '../../core/template-compiler'
 
 const HeaderComponent = {
     template: `

@@ -2,12 +2,12 @@ import { ref, onMounted } from '../core/reactive'
 import { h, Fragment } from '../core/renderer'
 import { compileComponent } from '../core/template-compiler'
 import * as api from '../api'
-import HeaderComponent from '../components/HeaderComponet'
-import BannerComponent from '../components/BannerComponent'
-import PlaylistCardComponent from '../components/PlaylistCardComponent'
-import SongListComponent from '../components/SongListComponent'
-import ArtistCardComponent from '../components/ArtistCardComponent'
-import PlayerBarComponent from '../components/PlayerBarComponent'
+import HeaderComponent from '../components/home/HeaderComponet'
+import BannerComponent from '../components/home/BannerComponent'
+import PlaylistCardComponent from '../components/home/PlaylistCardComponent'
+import SongListComponent from '../components/home/SongListComponent'
+import ArtistCardComponent from '../components/home/ArtistCardComponent'
+import PlayerBarComponent from '../components/common/PlayerBarComponent'
 
 const HomePageComponent = {
   setup() {
