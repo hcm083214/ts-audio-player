@@ -1,4 +1,4 @@
-import { h, compileComponent, ref, onMounted, onUnmounted } from '../../core'
+import { h, compileComponent, ref, computed, onMounted, onUnmounted } from '../../core'
 
 const BannerComponent = {
   setup(props: { playlists: any }) {
@@ -89,10 +89,10 @@ const BannerComponent = {
     function getIndicatorStyle(index: number) {
       // 指示器只显示原始5个，不包括副本
       const isActive = index === activeIndex.value && index < originalBanners.length
-      return {
-        width: isActive ? '2rem' : '0.5rem',
-        backgroundColor: isActive ? 'rgb(255, 255, 255)' : 'rgba(255, 255, 255, 0.5)'
-      }
+        return {
+          width: isActive ? '2rem' : '0.5rem',
+          backgroundColor: isActive ? 'rgb(255, 255, 255)' : 'rgba(255, 255, 255, 0.5)'
+        }
     }
     
     // 组件挂载时启动自动播放
