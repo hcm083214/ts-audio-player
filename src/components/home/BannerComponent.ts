@@ -84,17 +84,7 @@ const BannerComponent = {
         ? 'flex h-full' 
         : 'flex h-full transition-transform duration-500 ease-in-out'
     }
-    
-    // 获取指示器样式
-    function getIndicatorStyle(index: number) {
-      // 指示器只显示原始5个，不包括副本
-      const isActive = index === activeIndex.value && index < originalBanners.length
-      return {
-        width: isActive ? '2rem' : '0.5rem',
-        backgroundColor: isActive ? 'rgb(255, 255, 255)' : 'rgba(255, 255, 255, 0.5)'
-      }
-    }
-    
+
     // 组件挂载时启动自动播放
     onMounted(() => {
       startAutoPlay()
@@ -116,7 +106,6 @@ const BannerComponent = {
       stopAutoPlay,
       getContainerStyle,
       getContainerClass,
-      getIndicatorStyle,
     }
   },
   props: ['playlists'],
@@ -168,12 +157,11 @@ const BannerComponent = {
       
       <!-- 底部指示器 - 只显示原始5个，不包括副本 -->
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-        <div class="flex space-x-2">
+        <div class="indicator flex space-x-2">
           <span
             v-for="(banner, index) in originalBanners"
             :key="'indicator-' + banner.id"
-            class="cursor-pointer block bg-slate-100 h-2 rounded-full transition-all duration-300"
-            :style="getIndicatorStyle(index)"
+            :class="index === activeIndex ? 'indicator-active cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300' : 'cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300'"
             @click="goTo(index)"
           >
           </span>

@@ -27,6 +27,13 @@ svg use {
   }
 }
 
+.indicator .indicator-active {
+  animation: indicator-active 0.3s ease-in-out;
+  background-color: rgb(255, 255, 255);
+  width: 2rem;
+}
+
+
 .fade-in {
   animation: fadeIn 0.3s ease-in-out;
 }

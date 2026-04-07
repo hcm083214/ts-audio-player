@@ -25,48 +25,47 @@ export function interpolate(str: string, context: any): string {
 
 export function evaluateExpression(expr: string, context: any): any {
   try {
-    
-    // 🔥 关键修复：构建一个包含所有上下文属性和全局对象的执行环境
-    // 这样可以确保表达式能够正确访问循环变量、响应式数据和全局对象
-    
-    // 收集上下文中的所有键
-    const contextKeys = Object.keys(context || {})
+    // 🔥 关键修复：创建代理对象，自动解包 Ref/Computed
+    // 这样在 with 语句中访问变量时，会自动返回 .value
     
     // 定义常用的全局对象，防止 "xxx is not defined" 错误
     const globalObjects = ['Math', 'JSON', 'Date', 'Array', 'Object', 'String', 'Number', 'Boolean']
     
-    // 构建参数列表和函数体
-    const paramList = [...contextKeys, ...globalObjects].join(', ')
+    // 创建代理上下文，拦截属性访问以自动解包 Ref
+    const proxyContext = new Proxy(context || {}, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver)
+        // 如果值是 Ref 或 ComputedRef，自动返回 .value
+        if (value && typeof value === 'object' && '_value' in value) {
+          return value.value
+        }
+        return value
+      }
+    })
     
-    // 构建上下文值数组
-    const contextValues = contextKeys.map(key => context[key])
-    const globalValues = globalObjects.map(name => (window as any)[name])
+    // 构建参数列表：ctx + 全局对象
+    const paramList = ['ctx', ...globalObjects].join(', ')
     
-    // 使用 Function 构造函数创建一个函数
-    // 将所有上下文变量和全局对象作为参数传入
+    // 使用 with 语句创建执行环境
     const fn = new Function(
       paramList,
       `
         return function() {
           try {
-            // 直接执行表达式，此时所有变量都在作用域中
-            return (${expr});
+            with (ctx) {
+              return (${expr});
+            }
           } catch (e) {
-            console.warn('Expression execution error:', '${expr}', e);
+            console.warn('Expression execution error:', e);
             return undefined;
           }
         }
       `
     )
     
-    // 调用函数，传入所有上下文值和全局对象
-    const result = fn(...contextValues, ...globalValues)()
-    
-    // 🔥 关键修复：如果结果是 RefImpl 对象，返回它的 .value 属性
-    // 这样在布尔上下文中会正确评估 ref 的值
-    if (result && typeof result === 'object' && '_value' in result) {
-      return result.value;
-    }
+    // 调用函数，传入代理后的上下文和全局对象
+    const globalValues = globalObjects.map(name => (window as any)[name])
+    const result = fn(proxyContext, ...globalValues)()
     
     return result;
   } catch (e) {

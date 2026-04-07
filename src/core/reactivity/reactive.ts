@@ -140,8 +140,10 @@ class ComputedImpl<T> {
   private _dirty = true
   private dep: Dep = new Dep()
   private effect: Effect
+  private getter: () => T  // 🔥 保存原始 getter
 
   constructor(getter: () => T) {
+    this.getter = getter  // 🔥 保存 getter
     this.effect = effect(() => {
       if (!this._dirty) {
         this._dirty = true
@@ -152,10 +154,13 @@ class ComputedImpl<T> {
   }
 
   get value() {
+    console.log('📖 ComputedImpl.value getter 被调用！_dirty:', this._dirty)
     track(this, 'value')
     if (this._dirty) {
-      this._value = (this.effect as any)()
+      console.log('  执行 computed getter...')
+      this._value = this.getter()  // 🔥 执行原始 getter
       this._dirty = false
+      console.log('  _value:', this._value)
     }
     return this._value as T
   }
