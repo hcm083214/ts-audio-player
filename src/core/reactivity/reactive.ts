@@ -5,17 +5,13 @@ class Dep {
   depend() {
     if (activeEffect) {
       this.subscribers.add(activeEffect)
-      // // console.log('🔵 [Dep.depend] 添加订阅者，当前订阅数:', this.subscribers.size, 'activeEffect:', activeEffect === this.subscribers.values().next().value)
     }
   }
 
   notify() {
-    // // console.log('🔵 [Dep.notify] 开始通知，订阅数:', this.subscribers.size)
     // 🔥 关键修复：使用 queueMicrotask 异步调度，防止无限递归
     this.subscribers.forEach(effect => {
-      // // console.log('🔵 [Dep.notify] 准备执行 effect')
       queueMicrotask(() => {
-        // // console.log('🔵 [Dep.notify] microtask 中执行 effect')
         effect()
       })
     })
@@ -144,23 +140,34 @@ class ComputedImpl<T> {
 
   constructor(getter: () => T) {
     this.getter = getter  // 🔥 保存 getter
+    // 🔥 关键修复：在 effect 中执行 getter 以收集依赖
+    // 当依赖变化时，effect 会重新执行，将 _dirty 标记为 true
+    let isComputing = false
+    
     this.effect = effect(() => {
-      if (!this._dirty) {
-        this._dirty = true
-        this.dep.notify()
+      if (isComputing) return  // 防止递归调用
+      
+      isComputing = true
+      try {
+        // 执行 getter 来收集依赖
+        const newValue = this.getter()
+        // 如果值发生变化或首次计算，通知订阅者
+        if (this._dirty || newValue !== this._value) {
+          this._dirty = true
+          this.dep.notify()
+        }
+      } finally {
+        isComputing = false
       }
     })
     ;(this.effect as any).computed = this
   }
 
   get value() {
-    console.log('📖 ComputedImpl.value getter 被调用！_dirty:', this._dirty)
     track(this, 'value')
     if (this._dirty) {
-      console.log('  执行 computed getter...')
       this._value = this.getter()  // 🔥 执行原始 getter
       this._dirty = false
-      console.log('  _value:', this._value)
     }
     return this._value as T
   }

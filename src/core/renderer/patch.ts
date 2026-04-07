@@ -61,14 +61,18 @@ export function patch(oldVnode: VNode, newVnode: VNode): void {
     // Fragment 没有实际的 DOM 元素，直接更新子节点
     const oldChildren = Array.isArray(oldVnode.children) ? oldVnode.children : []
     const newChildren = Array.isArray(newVnode.children) ? newVnode.children : []
-    // 🔥 关键修复：如果 oldVnode.el 不存在，说明是首次 patch，应该跳过
-    if (!oldVnode.el) {
-      console.warn('⚠️ Fragment not mounted yet (oldVnode.el is undefined), skipping patch')
+    
+    // 🔥 关键修复：Fragment 使用父容器的引用
+    // 如果 oldVnode.el 不存在，说明是首次挂载，应该走 mount 流程
+    const container = oldVnode.el || newVnode.el
+    
+    if (!container) {
+      console.warn('⚠️ Fragment has no container reference, skipping patch')
       return
     }
     
-    // Fragment 使用父容器的引用
-    const container = oldVnode.el as any as Element
+    // 🔥 确保新 vnode 也有 el 引用
+    newVnode.el = container
     
     const minLength = Math.min(oldChildren.length, newChildren.length)
 

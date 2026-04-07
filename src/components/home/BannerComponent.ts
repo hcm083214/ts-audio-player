@@ -14,6 +14,17 @@ const BannerComponent = {
     // 添加第一张的副本到最后，实现无缝循环
     const bannerLists = [...originalBanners, originalBanners[0]]
     
+    // 🔥 关键修复：为每个指示器创建 computed 类名
+    // 这样可以确保响应式依赖被正确收集和追踪
+    const indicatorClasses = computed(() => {
+      return originalBanners.map((_: any, index: number) => {
+        const isActive = index === activeIndex.value
+        return isActive
+          ? 'indicator-active cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300' 
+          : 'cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300'
+      })
+    })
+    
     // 切换到指定索引
     function goTo(index: number) {
       activeIndex.value = index
@@ -84,7 +95,11 @@ const BannerComponent = {
         ? 'flex h-full' 
         : 'flex h-full transition-transform duration-500 ease-in-out'
     }
+    
 
+    
+
+    
     // 组件挂载时启动自动播放
     onMounted(() => {
       startAutoPlay()
@@ -99,6 +114,7 @@ const BannerComponent = {
       bannerLists,
       originalBanners,
       activeIndex,
+      indicatorClasses, // 🔥 导出预计算的类名数组
       prev,
       next,
       goTo,
@@ -161,7 +177,7 @@ const BannerComponent = {
           <span
             v-for="(banner, index) in originalBanners"
             :key="'indicator-' + banner.id"
-            :class="index === activeIndex ? 'indicator-active cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300' : 'cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300'"
+            :class="indicatorClasses[index]"
             @click="goTo(index)"
           >
           </span>
