@@ -19,9 +19,10 @@ const BannerComponent = {
     const indicatorClasses = computed(() => {
       return originalBanners.map((_: any, index: number) => {
         const isActive = index === activeIndex.value
+        // 🔥 添加阴影和边框，确保在任何背景下都可见
         return isActive
-          ? 'indicator-active cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300' 
-          : 'cursor-pointer block bg-slate-100 w-2 h-2 rounded-full transition-all duration-300'
+          ? 'indicator-active cursor-pointer block bg-white w-2 h-2 rounded-full shadow-lg ring-2 ring-black/20 transition-all duration-300' 
+          : 'cursor-pointer block bg-white/70 w-2 h-2 rounded-full shadow-md ring-1 ring-black/10 hover:bg-white transition-all duration-300'
       })
     })
     
