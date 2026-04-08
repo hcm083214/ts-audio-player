@@ -20,7 +20,9 @@ export function parseEventHandler(eventName: string, handlerExpr: string, contex
   if (isSimpleCall) {
     // 简单调用：直接使用 context 中的函数引用
     const funcName = isSimpleCall[1]
-    return context[funcName]
+    const func = context[funcName]
+    // 🔥 如果函数已经是一个函数，直接返回；否则包装一层
+    return typeof func === 'function' ? func : () => {}
   } else if (isParameterizedCall) {
     // 带参数调用：需要包装函数传递参数
     const funcName = isParameterizedCall[1]
@@ -29,13 +31,19 @@ export function parseEventHandler(eventName: string, handlerExpr: string, contex
     return (...args: any[]) => {
       const func = context[funcName]
       if (typeof func === 'function') {
+        // 🔥 关键修复：从 context 中获取参数的实际值
+        const paramValues = paramNames.map(p => {
+          // 尝试从 context 中获取参数值
+          return p in context ? context[p] : undefined
+        })
         // 将参数传递给函数
-        return func.apply(context, args.length > 0 ? args : paramNames.map(p => context[p]))
+        return func.apply(context, paramValues)
       }
     }
   } else if (isFunctionName) {
     // 简单函数名：直接使用 context 中的函数引用
-    return context[handlerExpr]
+    const func = context[handlerExpr]
+    return typeof func === 'function' ? func : () => {}
   } else {
     // 复杂表达式：使用原来的 evaluateExpression
     return () => {

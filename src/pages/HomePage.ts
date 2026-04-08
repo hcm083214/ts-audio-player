@@ -62,7 +62,7 @@ const HomePageComponent = {
       <HeaderComponent />
       
       <!-- 主内容区 -->
-      <main class="container mx-auto px-4 pt-24 pb-20">
+      <main class="w-[1080px] mx-auto px-4 pt-24 pb-20">
         <!-- 加载状态 -->
         <div v-if="loading" class="flex justify-center items-center h-screen">
           <div class="text-2xl font-bold text-primary">加载中...</div>
