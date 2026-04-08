@@ -2,7 +2,7 @@
 const BASE_URL = '/api'
 
 // 通用请求函数
-async function request<T>(url: string, params?: Record<string, any>): Promise<T> {
+export async function request<T>(url: string, params?: Record<string, any>): Promise<T> {
   const queryString = params ? '?' + new URLSearchParams(params).toString() : ''
   const response = await fetch(`${BASE_URL}${url}${queryString}`)
   if (!response.ok) {
@@ -67,36 +67,7 @@ export async function getPlaylistDetail(id: string, s: number = 8) {
   })
 }
 
-// 推荐歌单接口
-export async function getPersonalized(limit: number = 30) {
-  return request<{
-    code: number
-    result: any[]
-  }>('/personalized', {
-    limit
-  })
-}
 
-// 热门歌曲接口
-export async function getTopSong(type: number = 0) {
-  return request<{
-    code: number
-    data: any[]
-  }>('/top/song', {
-    type
-  })
-}
-
-// 歌手推荐接口
-export async function getTopArtists(offset: number = 0, limit: number = 50) {
-  return request<{
-    code: number
-    artists: any[]
-  }>('/top/artists', {
-    offset,
-    limit
-  })
-}
 
 // 歌词接口
 export async function getLyric(id: string) {
@@ -167,3 +138,6 @@ export async function getArtistAlbum(id: string, limit: number = 30, offset: num
     offset
   })
 }
+
+
+

@@ -1,8 +1,8 @@
 import { ref, onMounted, h, Fragment, compileComponent } from '../core'
-import * as api from '../api'
+import {getPersonalized,getTopArtists,getTopSong,getTopPlaylist} from '../api/HomeApi'
 import HeaderComponent from '../components/home/HeaderComponet'
 import BannerComponent from '../components/home/BannerComponent'
-import PlaylistCardComponent from '../components/home/PlaylistCardComponent'
+import PlaylistComponent from '../components/home/PlaylistComponent'
 import SongListComponent from '../components/home/SongListComponent'
 import ArtistCardComponent from '../components/home/ArtistCardComponent'
 import PlayerBarComponent from '../components/common/PlayerBarComponent'
@@ -19,9 +19,9 @@ const HomePageComponent = {
     async function loadData() {
       try {
         const [playlistsRes, songsRes, artistsRes] = await Promise.all([
-          api.getPersonalized(12),
-          api.getTopSong(),
-          api.getTopArtists(0, 10)
+          getPersonalized(12),
+          getTopSong(),
+          getTopArtists(0, 10)
         ])
         console.log("🚀 ~ loadData ~ playlistsRes, songsRes, artistsRes:", playlistsRes, songsRes, artistsRes)
 
@@ -35,6 +35,8 @@ const HomePageComponent = {
       }
     }
 
+
+
     // 初始加载
     onMounted(() => {
       loadData()
@@ -44,13 +46,13 @@ const HomePageComponent = {
       playlists,
       topSongs,
       topArtists,
-      loading
+      loading,
     }
   },
   components: {
     HeaderComponent,
     BannerComponent,
-    PlaylistCardComponent,
+    PlaylistComponent,
     SongListComponent,
     ArtistCardComponent,
     PlayerBarComponent
@@ -71,20 +73,8 @@ const HomePageComponent = {
           <!-- 轮播图 -->
           <BannerComponent :playlists="playlists" />
 
-          <!-- 推荐歌单 -->
-          <div class="mt-8">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-2xl font-bold">推荐歌单</h2>
-              <a href="#" class="text-primary hover:underline">查看更多</a>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              <PlaylistCardComponent
-                v-for="playlist in playlists"
-                :key="playlist.id"
-                :playlist="playlist"
-              />
-            </div>
-          </div>
+          <!-- 热门推荐标题和分类标签 -->
+          <PlaylistComponent :playlists="playlists" />
 
           <!-- 热门歌曲 -->
           <div class="mt-12">
