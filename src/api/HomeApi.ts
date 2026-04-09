@@ -75,6 +75,7 @@ export async function getSongCategories() {
         code: number
         all: SongCategory
         sub: SongCategory[]
+        categories: Record<number, string>
     }>('/playlist/catlist')
 }
 

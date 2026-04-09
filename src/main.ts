@@ -1,6 +1,7 @@
 import { createRouter } from './router'
 import HomePage from './pages/HomePage'
 import PlayerPage from './pages/PlayerPage'
+import PlayListPage from './pages/PlayListPage'
 import { h } from './core'
 
 // 获取应用容器
@@ -18,6 +19,10 @@ const routes = [
   {
     path: '/player',
     component: () => h(PlayerPage, {})
+  },
+  {
+    path: '/playlist',
+    component: () => h(PlayListPage, {})
   }
 ]
 
