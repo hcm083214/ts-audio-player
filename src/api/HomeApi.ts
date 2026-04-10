@@ -80,6 +80,14 @@ export async function getSongCategories() {
 }
 
 // 歌单（网友精选碟）接口
+/**
+ * @description: 调用此接口 , 可获取网友精选碟歌单
+ * @param {string} cat 比如 " 华语 "、" 古风 " 、" 欧美 "、" 流行 ", 默认为"全部",可从歌单分类接口获取(/playlist/catlist)
+ * @param {*} order 可选值为 'new' 和 'hot', 分别对应最新和最热 , 默认为'hot'
+ * @param {number} limit 取出歌单数量 , 默认为 50
+ * @param {number} offset 偏移数量 , 用于分页 , 如 :(页数 - 1)*50, 其中 50 为 limit 的值
+ * @return {*}
+ */
 export async function getTopPlaylist(cat: string = '全部', order: 'hot' | 'new' = 'hot', limit: number = 50, offset: number = 0) {
     return request<{
         code: number

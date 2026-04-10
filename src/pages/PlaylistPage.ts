@@ -1,11 +1,49 @@
-import { h, compileComponent, onMounted, ref } from '../core'
-import { getSongCategories, SongCategory, getTopPlaylist } from '../api/HomeApi'
+import { h, compileComponent, ref, onMounted } from '../core'
 import PlaylistCardComponent from '../components/common/PlaylistCardComponent'
+import PaginationComponent from '../components/common/PaginationComponent'
+import { getSongCategories, getTopPlaylist, type SongCategory } from '../api/HomeApi'
 
 interface CategoryGroup {
   name: string
   icon: string
   categories: string[]
+}
+
+// 分类图标映射
+const categoryIcons: Record<string, string> = {
+  '语种': 'icon-globe',
+  '风格': 'icon-music',
+  '场景': 'icon-coffee',
+  '情感': 'icon-smile',
+  '主题': 'icon-music-note'
+}
+
+/**
+ * 将 API 返回的分类数据转换为分组格式
+ * @param categories - API 返回的 sub 数组
+ * @param categoriesMap - API 返回的 categories 映射对象
+ * @returns 分组后的分类数据
+ */
+function getCategoryGroups(categories: SongCategory[], categoriesMap: Record<string, string>): CategoryGroup[] {
+  const groups: Record<string, string[]> = {}
+  
+  // 按 category 字段分组
+  categories.forEach(cat => {
+    const groupName = categoriesMap[String(cat.category)]
+    if (groupName && !groups[groupName]) {
+      groups[groupName] = []
+    }
+    if (groupName) {
+      groups[groupName].push(cat.name)
+    }
+  })
+  
+  // 转换为数组格式并添加图标
+  return Object.entries(groups).map(([name, cats]) => ({
+    name,
+    icon: categoryIcons[name] || 'icon-music',
+    categories: cats
+  }))
 }
 
 const PlayListPage = {
@@ -19,40 +57,16 @@ const PlayListPage = {
     const loading = ref(false)
     const showCategoryDropdown = ref(false)
 
-    // 分类分组配置
-    const categoryGroups = ref<CategoryGroup[]>([
-      {
-        name: '语种',
-        icon: 'icon-globe',
-        categories: ['华语', '欧美', '日语', '韩语', '粤语']
-      },
-      {
-        name: '风格',
-        icon: 'icon-music',
-        categories: ['流行', '摇滚', '民谣', '电子', '舞曲', '说唱', '轻音乐', '爵士', '乡村', 'R&B/Soul', '古典', '民族', '英伦', '金属', '朋克', '蓝调', '雷鬼', '世界音乐', '拉丁', 'New Age', '古风', '后摇', 'Bossa Nova']
-      },
-      {
-        name: '场景',
-        icon: 'icon-coffee',
-        categories: ['清晨', '夜晚', '学习', '工作', '午休', '下午茶', '地铁', '驾车', '运动', '旅行', '散步', '酒吧']
-      },
-      {
-        name: '情感',
-        icon: 'icon-smile',
-        categories: ['怀旧', '清新', '浪漫', '伤感', '治愈', '放松', '孤独', '感动', '兴奋', '快乐', '安静', '思念']
-      },
-      {
-        name: '主题',
-        icon: 'icon-music-note',
-        categories: ['综艺', '影视原声', 'ACG', '儿童', '校园', '游戏', '70后', '80后', '90后', '网络歌曲', 'KTV', '经典', '翻唱', '吉他', '钢琴', '器乐', '榜单', '00后']
-      }
-    ])
+    // 分类分组配置（从 API 动态生成）
+    const categoryGroups = ref<CategoryGroup[]>([])
 
     // 加载所有分类
     onMounted(async () => {
       try {
         const result = await getSongCategories()
         allCategories.value = result.sub || []
+        // 动态生成分组配置
+        categoryGroups.value = getCategoryGroups(result.sub, result.categories)
       } catch (error) {
         console.error('Failed to load categories:', error)
       }
@@ -96,6 +110,10 @@ const PlayListPage = {
       totalPages.value = Math.ceil(total.value / pageSize.value)
     }
 
+    const changeCategoryDropdown = () => {
+      showCategoryDropdown.value = !showCategoryDropdown.value
+    }
+
     return {
       allCategories,
       currentCategory,
@@ -109,10 +127,11 @@ const PlayListPage = {
       selectCategory,
       changePage,
       totalPages,
-      updateTotalPages
+      updateTotalPages,
+      changeCategoryDropdown
     }
   },
-  components: { PlaylistCardComponent },
+  components: { PlaylistCardComponent, PaginationComponent },
   template: `
     <div class="min-h-screen bg-gray-50 pb-20">
       <!-- 顶部导航栏 -->
@@ -122,7 +141,7 @@ const PlayListPage = {
             <!-- 左侧：分类选择 -->
             <div class="relative">
               <button
-                @click="showCategoryDropdown = !showCategoryDropdown"
+                @click="changeCategoryDropdown"
                 class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 <span class="text-lg font-bold">{{ currentCategory }}</span>
@@ -203,44 +222,11 @@ const PlayListPage = {
         </div>
 
         <!-- 分页组件 -->
-        <div v-if="totalPages > 1" class="flex justify-center items-center gap-2 mt-12 mb-8">
-          <!-- 上一页 -->
-          <button
-            @click="changePage(currentPage - 1)"
-            :disabled="currentPage === 1"
-            :class="currentPage === 1 ? 
-              'bg-gray-100 text-gray-400 cursor-not-allowed' : 
-              'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-            class="px-4 py-2 rounded-lg transition-colors"
-          >
-            上一页
-          </button>
-
-          <!-- 页码 -->
-          <button
-            v-for="page in totalPages"
-            :key="page"
-            @click="changePage(page)"
-            :class="currentPage === page ? 
-              'bg-primary text-white border-primary' : 
-              'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-            class="px-4 py-2 rounded-lg border transition-colors"
-          >
-            {{ page }}
-          </button>
-
-          <!-- 下一页 -->
-          <button
-            @click="changePage(currentPage + 1)"
-            :disabled="currentPage === totalPages"
-            :class="currentPage === totalPages ? 
-              'bg-gray-100 text-gray-400 cursor-not-allowed' : 
-              'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-            class="px-4 py-2 rounded-lg transition-colors"
-          >
-            下一页
-          </button>
-        </div>
+        <PaginationComponent
+          :currentPage="currentPage"
+          :totalPages="totalPages"
+          :onPageChange="changePage"
+        />
       </div>
     </div>
   `

@@ -12,7 +12,7 @@ const PlaylistComponent = {
     const playlistsLoading = ref(false)
     onMounted(async () => {
       const result = await getSongCategories()
-      categories.value = result.sub.map((cat: SongCategory) => cat.name).slice(0, 8) 
+      categories.value = result.sub.map((cat: SongCategory) => cat.name).slice(0, 8)
       loadTopPlaylists()
     })
     // 加载精选歌单
@@ -39,7 +39,7 @@ const PlaylistComponent = {
       router.push('/playlist')
     }
 
-    return { playlists, categories, currentCategory, switchCategory, topPlaylists, playlistsLoading }
+    return { playlists, categories, currentCategory, switchCategory, topPlaylists, playlistsLoading, getMore }
   },
   props: ['playlists'],
   components: { PlaylistCardComponent },
