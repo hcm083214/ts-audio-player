@@ -63,7 +63,7 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
  * @param component 包含 setup 和 template 属性的组件对象
  */
 export function compileComponent(component: {
-  setup?: (props: any) => any
+  setup?: (props: any, context: any) => any
   template?: string
   props?: string[]
   emits?: string[]

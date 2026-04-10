@@ -267,7 +267,10 @@ function buildComponentVNode(el: Element, component: any, context: any): VNode {
       const propName = name.slice(1)
       const propValue = evaluateExpression(value, context)
       if (propName !== 'key') {
-        componentProps[propName] = propValue
+        // 🔥 关键修复：DOM 属性名会被浏览器转为小写，需要转换回 camelCase
+        // 例如：totalpages -> totalPages, currentpage -> currentPage
+        const camelPropName = propName.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+        componentProps[camelPropName] = propValue
       }
     }
     // 处理事件

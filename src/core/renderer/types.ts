@@ -1,6 +1,11 @@
+// 组件上下文类型
+export interface ComponentContext {
+  emit: (event: string, ...args: any[]) => void
+}
+
 // 组件类型
 export interface Component {
-  setup?: (props: any) => any
+  setup?: (props: any, context: ComponentContext) => any
   render?: (...args: any[]) => VNode
   props?: string[]
   emits?: string[]

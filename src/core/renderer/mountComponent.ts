@@ -4,6 +4,23 @@ import { mount } from './mount'
 import { patch } from './patch'
 
 /**
+ * 创建 emit 函数
+ * @param vnode 当前组件的 vnode
+ * @param emits 声明的事件列表
+ */
+function createEmit(vnode: VNode, emits?: string[]) {
+  return function(event: string, ...args: any[]) {
+    // 将事件名转换为 props 中的回调函数名（Vue 风格：update:name -> onUpdate:name）
+    const handlerName = `on${event.charAt(0).toUpperCase()}${event.slice(1)}`
+    
+    // 从父组件传递的 props 中查找对应的回调函数
+    if (vnode.props && typeof vnode.props[handlerName] === 'function') {
+      vnode.props[handlerName](...args)
+    }
+  }
+}
+
+/**
  * 挂载组件
  * @param vnode 虚拟 DOM 节点
  * @param container 容器元素
@@ -27,8 +44,14 @@ export function mountComponent(vnode: VNode, container: Element): void {
 
   vnode.component = instance
   
+  // 🔥 创建 context 对象，包含 emit 等方法
+  const context = {
+    emit: createEmit(vnode, component.emits)
+  }
+  
   if (component.setup) {
-    instance.setupState = component.setup(instance.props)
+    // 🔥 将 context 作为第二个参数传递给 setup
+    instance.setupState = component.setup(instance.props, context)
   }
 
   // 优先使用 render 函数，如果没有则尝试从 template 编译

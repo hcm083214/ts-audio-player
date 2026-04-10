@@ -6,16 +6,29 @@ interface PaginationProps {
 }
 
 const PaginationComponent = {
-  setup(props: PaginationProps,{ emit }){
-    const currentPage = props.currentPage
-    const totalPages = props.totalPages
-    const handlePageChange = (page: number) => {
-      emit('onPageChange', page)  
+  setup(props: PaginationProps, { emit }: any){
+    // 🔥 生成页码数组：[1, 2, 3, ..., totalPages]
+    const pageNumbers = () => {
+      const pages = []
+      for (let i = 1; i <= props.totalPages; i++) {
+        pages.push(i)
+      }
+      return pages
     }
-    return { currentPage, totalPages, handlePageChange}
+    console.log(props,props.totalPages)
+    const handlePageChange = (page: number) => {
+      // 🔥 使用 emit 触发事件
+      emit('pageChange', page)
+    }
+    return { 
+      currentPage: props.currentPage, 
+      totalPages: props.totalPages, 
+      pageNumbers,
+      handlePageChange 
+    }
   },
   props: ['currentPage', 'totalPages'],
-  emits: ['onPageChange'],
+  emits: ['pageChange'],
   template: `
     <div class="flex justify-center items-center gap-2 mt-12 mb-8">
       <!-- 上一页 -->
@@ -32,7 +45,7 @@ const PaginationComponent = {
 
       <!-- 页码 -->
       <button
-        v-for="page in totalPages"
+        v-for="page in pageNumbers()"
         :key="page"
         @click="handlePageChange(page)"
         :class="currentPage === page ? 

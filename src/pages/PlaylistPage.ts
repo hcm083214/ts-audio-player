@@ -223,9 +223,9 @@ const PlayListPage = {
 
         <!-- 分页组件 -->
         <PaginationComponent
-          :currentPage="currentPage"
-          :totalPages="totalPages"
-          :onPageChange="changePage"
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          @pageChange="changePage"
         />
       </div>
     </div>
