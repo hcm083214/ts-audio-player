@@ -275,10 +275,18 @@ function buildComponentVNode(el: Element, component: any, context: any): VNode {
     }
     // 处理事件
     else if (name.startsWith('@')) {
-      const eventName = name.slice(1)
-      const handlerName = value
+      const eventName = name.slice(1) // 从 DOM 属性获取（已转小写）
+      const handlerName = value // 父组件中的函数名（保持原始大小写）
+      
+
+      
       if (context[handlerName]) {
-        componentProps[`on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`] = context[handlerName]
+        // 🔥 关键修复：使用 handlerName 推断原始事件名，而不是依赖 DOM 属性名
+        // 例如：handlerName = 'selectCategory' -> event = 'selectCategory' -> prop = 'onSelectCategory'
+        const eventNameFromHandler = handlerName.charAt(0).toLowerCase() + handlerName.slice(1)
+        componentProps[`on${handlerName.charAt(0).toUpperCase()}${handlerName.slice(1)}`] = context[handlerName]
+      } else {
+        console.warn('❌ 事件绑定失败: context 中找不到', handlerName)
       }
     }
     // 处理 v-model
