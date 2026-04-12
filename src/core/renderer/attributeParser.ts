@@ -63,6 +63,15 @@ export function parseAttributes(el: Element, context: any, isSvg: boolean = fals
   const props: Record<string, any> = {}
   const namespace = 'http://www.w3.org/2000/svg'
   
+  // 🔥 第一步：先收集静态 class
+  let staticClass = ''
+  Array.from(el.attributes).forEach(attr => {
+    if (attr.name === 'class') {
+      staticClass = attr.value
+    }
+  })
+  
+  // 🔥 第二步：处理所有属性
   Array.from(el.attributes).forEach(attr => {
     const name = attr.name
     const value = attr.value
@@ -73,9 +82,15 @@ export function parseAttributes(el: Element, context: any, isSvg: boolean = fals
       const propValue = evaluateExpression(value, context)
       if (propName !== 'key') {
         // 🔥 关键修复：DOM 属性名会被浏览器转为小写，需要转换回 camelCase
-        // 例如：totalpages -> totalPages, currentpage -> currentPage
         const camelPropName = propName.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
-        props[camelPropName] = propValue
+        
+        // 🔥 特殊处理：如果是 :class，需要与静态 class 合并
+        if (camelPropName === 'class') {
+          const dynamicClass = typeof propValue === 'string' ? propValue : ''
+          props.className = staticClass ? `${staticClass} ${dynamicClass}`.trim() : dynamicClass
+        } else {
+          props[camelPropName] = propValue
+        }
       }
     }
     // 处理事件
@@ -94,6 +109,11 @@ export function parseAttributes(el: Element, context: any, isSvg: boolean = fals
     }
     // 普通属性
     else {
+      // 如果已经通过 :class 合并处理了 className，则跳过普通的 class 属性，避免覆盖
+      if (name === 'class' && props.className !== undefined) {
+        return
+      }
+
       if (isSvg) {
         // SVG 属性的特殊处理
         parseSvgAttribute(el, name, value, props, namespace)
@@ -162,7 +182,14 @@ function parseHtmlAttribute(
   } else {
     const interpolatedValue = interpolate(value, context)
     if (name === 'class') {
-      props.className = interpolatedValue
+      // 🔥 关键修复：如果已经有动态 :class，则合并两者
+      // 静态 class 在前，动态 class 在后
+      if (props.className) {
+        // 已经有 :class，将静态 class 添加到前面
+        props.className = `${interpolatedValue} ${props.className}`.trim()
+      } else {
+        props.className = interpolatedValue
+      }
     } else {
       props[name] = interpolatedValue
     }

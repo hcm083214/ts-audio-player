@@ -10,12 +10,23 @@ import { patch } from './patch'
  */
 function createEmit(vnode: VNode, emits?: string[]) {
   return function(event: string, ...args: any[]) {
+    
     // 将事件名转换为 props 中的回调函数名（Vue 风格：update:name -> onUpdate:name）
-    const handlerName = `on${event.charAt(0).toUpperCase()}${event.slice(1)}`
+    // 🔥 支持 kebab-case 转换为 camelCase
+    const camelEventName = event.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+    const handlerName = `on${camelEventName.charAt(0).toUpperCase()}${camelEventName.slice(1)}`
+    
+    console.log('🔍 createEmit 转换后:', {
+      '转换后的事件名': camelEventName,
+      'handlerName': handlerName,
+      '找到的回调': vnode.props ? vnode.props[handlerName] : null
+    })
     
     // 从父组件传递的 props 中查找对应的回调函数
     if (vnode.props && typeof vnode.props[handlerName] === 'function') {
       vnode.props[handlerName](...args)
+    } else {
+      console.warn('❌ createEmit 未找到回调:', handlerName)
     }
   }
 }

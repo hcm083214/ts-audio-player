@@ -84,6 +84,7 @@ const PlayListPage = {
         playlists.value = res.playlists || []
         total.value = res.total || 0
         currentPage.value = page
+        console.log("🚀 ~ loadPlaylists ~ currentPage.value:", currentPage.value)
       } catch (error) {
         console.error('Failed to load playlists:', error)
       } finally {
@@ -99,6 +100,7 @@ const PlayListPage = {
 
     // 切换分页
     function changePage(page: number) {
+      console.log("🚀 ~ changePage ~ page:", page)
       if (page < 1 || page > totalPages.value) return
       currentPage.value = page
       loadPlaylists(page)
@@ -153,7 +155,7 @@ const PlayListPage = {
         <PaginationComponent
           :current-page="currentPage"
           :total-pages="totalPages"
-          @pageChange="changePage"
+          @page-change="changePage"
         />
       </div>
     </div>

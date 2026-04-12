@@ -278,13 +278,13 @@ function buildComponentVNode(el: Element, component: any, context: any): VNode {
       const eventName = name.slice(1) // 从 DOM 属性获取（已转小写）
       const handlerName = value // 父组件中的函数名（保持原始大小写）
       
-
       
       if (context[handlerName]) {
-        // 🔥 关键修复：使用 handlerName 推断原始事件名，而不是依赖 DOM 属性名
-        // 例如：handlerName = 'selectCategory' -> event = 'selectCategory' -> prop = 'onSelectCategory'
-        const eventNameFromHandler = handlerName.charAt(0).toLowerCase() + handlerName.slice(1)
-        componentProps[`on${handlerName.charAt(0).toUpperCase()}${handlerName.slice(1)}`] = context[handlerName]
+        // 🔥 关键修复：从 DOM 属性名（eventName）推断 prop 名，而不是从 handlerName
+        // 例如：eventName = 'page-change' -> camelEventName = 'pageChange' -> prop = 'onPageChange'
+        const camelEventName = eventName.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+        const handlerPropName = `on${camelEventName.charAt(0).toUpperCase()}${camelEventName.slice(1)}`
+        componentProps[handlerPropName] = context[handlerName]
       } else {
         console.warn('❌ 事件绑定失败: context 中找不到', handlerName)
       }
