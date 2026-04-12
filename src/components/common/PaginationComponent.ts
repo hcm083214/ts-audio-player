@@ -7,19 +7,60 @@ interface PaginationProps {
 
 const PaginationComponent = {
   setup(props: PaginationProps, { emit }: any){
-    // 🔥 生成页码数组：[1, 2, 3, ..., totalPages]
+    // 🔥 生成智能页码数组，包含省略号逻辑
     const pageNumbers = () => {
-      const pages = []
-      for (let i = 1; i <= props.totalPages; i++) {
-        pages.push(i)
+      const pages: (number | string)[] = []
+      const current = props.currentPage
+      const total = props.totalPages
+      
+      // 显示最多 7 个页码按钮（不包括省略号）
+      const maxVisible = 7
+      
+      if (total <= maxVisible) {
+        // 总页数少于最大显示数，显示所有页码
+        for (let i = 1; i <= total; i++) {
+          pages.push(i)
+        }
+      } else {
+        // 总页数较多，需要省略
+        pages.push(1) // 始终显示第一页
+        
+        if (current > 4) {
+          pages.push('...') // 左侧省略号
+        }
+        
+        // 计算中间页码范围
+        let start = Math.max(2, current - 2)
+        let end = Math.min(total - 1, current + 2)
+        
+        // 调整范围以确保显示足够的页码
+        if (current <= 4) {
+          end = Math.min(total - 1, maxVisible - 1)
+        }
+        if (current >= total - 3) {
+          start = Math.max(2, total - maxVisible + 2)
+        }
+        
+        for (let i = start; i <= end; i++) {
+          pages.push(i)
+        }
+        
+        if (current < total - 3) {
+          pages.push('...') // 右侧省略号
+        }
+        
+        pages.push(total) // 始终显示最后一页
       }
+      
       return pages
     }
-    console.log(props,props.totalPages)
-    const handlePageChange = (page: number) => {
-      // 🔥 使用 emit 触发事件
-      emit('pageChange', page)
+    
+    const handlePageChange = (page: number | string) => {
+      if (typeof page === 'number') {
+        emit('pageChange', page)
+      }
     }
+    
     return { 
       currentPage: props.currentPage, 
       totalPages: props.totalPages, 
@@ -36,36 +77,47 @@ const PaginationComponent = {
         @click="handlePageChange(currentPage - 1)"
         :disabled="currentPage === 1"
         :class="currentPage === 1 ? 
-          'bg-gray-100 text-gray-400 cursor-not-allowed' : 
+          'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 
           'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-        class="px-4 py-2 rounded-lg transition-colors"
+        class="px-3 py-1.5 rounded text-sm border transition-colors"
       >
-        上一页
+        < 上一页
       </button>
 
       <!-- 页码 -->
-      <button
-        v-for="page in pageNumbers()"
-        :key="page"
-        @click="handlePageChange(page)"
-        :class="currentPage === page ? 
-          'bg-primary text-white border-primary' : 
-          'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-        class="px-4 py-2 rounded-lg border transition-colors"
-      >
-        {{ page }}
-      </button>
+      <div class="flex items-center gap-1">
+        <div v-for="page in pageNumbers()" :key="page">
+          <!-- 省略号 -->
+          <span
+            v-if="page === '...'"
+            class="px-2 py-1.5 text-gray-500 text-sm"
+          >
+            ...
+          </span>
+          <!-- 页码按钮 -->
+          <button
+            v-else
+            @click="handlePageChange(page)"
+            :class="currentPage === page ? 
+              'bg-red-600 text-white border-red-600' : 
+              'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
+            class="min-w-[32px] px-2 py-1.5 rounded text-sm border transition-colors"
+          >
+            {{ page }}
+          </button>
+        </div>
+      </div>
 
       <!-- 下一页 -->
       <button
         @click="handlePageChange(currentPage + 1)"
         :disabled="currentPage === totalPages"
         :class="currentPage === totalPages ? 
-          'bg-gray-100 text-gray-400 cursor-not-allowed' : 
+          'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 
           'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-        class="px-4 py-2 rounded-lg transition-colors"
+        class="px-3 py-1.5 rounded text-sm border transition-colors"
       >
-        下一页
+        下一页 >
       </button>
     </div>
   `

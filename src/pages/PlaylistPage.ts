@@ -1,4 +1,4 @@
-import { h, compileComponent, ref, onMounted } from '../core'
+import { h, compileComponent, ref, onMounted, computed } from '../core'
 import PlaylistCardComponent from '../components/common/PlaylistCardComponent'
 import PaginationComponent from '../components/common/PaginationComponent'
 import PlaylistBannerComponent from '../components/playlist/PlaylistBannerComponent'
@@ -80,6 +80,7 @@ const PlayListPage = {
         loading.value = true
         const offset = (page - 1) * pageSize.value
         const res = await getTopPlaylist(currentCategory.value, 'hot', pageSize.value, offset)
+        console.log("🚀 ~ loadPlaylists ~ res:", res)
         playlists.value = res.playlists || []
         total.value = res.total || 0
         currentPage.value = page
@@ -92,7 +93,6 @@ const PlayListPage = {
 
     // 切换分类
     function selectCategory(cat: string) {
-      console.log("🚀 ~ PlaylistPage selectCategory 被调用 ~ cat:", cat)
       currentCategory.value = cat
       loadPlaylists(1)
     }
@@ -100,18 +100,13 @@ const PlayListPage = {
     // 切换分页
     function changePage(page: number) {
       if (page < 1 || page > totalPages.value) return
+      currentPage.value = page
       loadPlaylists(page)
     }
 
     // 计算总页数
-    const totalPages = ref(0)
+    const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
     
-    // 监听 total 变化，更新总页数
-    const updateTotalPages = () => {
-      totalPages.value = Math.ceil(total.value / pageSize.value)
-    }
-
-
 
     return {
       allCategories,
@@ -125,7 +120,6 @@ const PlayListPage = {
       selectCategory,
       changePage,
       totalPages,
-      updateTotalPages,
     }
   },
   components: { PlaylistCardComponent, PaginationComponent, PlaylistBannerComponent },
@@ -140,20 +134,21 @@ const PlayListPage = {
 
       <!-- 歌单列表 -->
       <div class="w-[1080px] mx-auto px-4 py-6">
-        <!-- 加载状态 -->
-        <div v-if="loading" class="flex justify-center items-center py-20">
-          <div class="text-xl text-primary">加载中...</div>
-        </div>
+        <div>
+          <!-- 加载状态 -->
+          <div v-if="loading" class="flex justify-center items-center py-20">
+            <div class="text-xl text-primary">加载中...</div>
+          </div>
 
-        <!-- 歌单网格 -->
-        <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          <PlaylistCardComponent
-            v-for="playlist in playlists"
-            :key="playlist.id"
-            :playlist="playlist"
-          />
+          <!-- 歌单网格 -->
+          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <PlaylistCardComponent
+              v-for="playlist in playlists"
+              :key="playlist.id"
+              :playlist="playlist"
+            />
+          </div>
         </div>
-
         <!-- 分页组件 -->
         <PaginationComponent
           :current-page="currentPage"
