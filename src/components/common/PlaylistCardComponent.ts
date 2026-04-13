@@ -1,4 +1,5 @@
 import { h, compileComponent } from '../../core'
+import {  useRouter, useRoute } from "../../router";
 
 interface PlaylistCardProps {
   playlist: {
@@ -12,18 +13,26 @@ interface PlaylistCardProps {
 
 const PlaylistCardComponent = {
   setup(props: PlaylistCardProps) {
+    const router = useRouter()
+    
     // 格式化播放量
     const formatPlayCount = (count: number): string => {
       return count > 10000 ? (count / 10000).toFixed(0) + '万' : String(count)
     }
+    
+    // 跳转到歌单详情页
+    function navigateToDetail() {
+      router.push(`/playlist/${props.playlist.id}`)
+    }
 
     return {
-      formatPlayCount
+      formatPlayCount,
+      navigateToDetail
     }
   },
   props: ['playlist'],
   template: `
-    <div class="group cursor-pointer">
+    <div class="group cursor-pointer" @click="navigateToDetail">
       <!-- 图片容器 -->
       <div class="relative aspect-square rounded-lg overflow-hidden mb-3">
         <img

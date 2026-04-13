@@ -79,6 +79,42 @@ export async function getSongCategories() {
     }>('/playlist/catlist')
 }
 
+/**
+ * @description: 获取歌单详情
+ * @param {number} id 歌单id
+ * @param {number} s 歌单最近的s个收藏者，默认为8
+ * @return {Promise<{ code: number; playlist: any; privileges: any[] }>}
+ */
+export async function getPlaylistDetail(id: number, s: number = 8) {
+    return request<{
+        code: number
+        playlist: any
+        privileges: any[]
+    }>(`/playlist/detail`, {
+        id,
+        s
+    })
+}
+
+/**
+ * @description: 获取歌单所有歌曲
+ * @param {number} id 歌单id
+ * @param {number} limit 限制获取歌曲的数量，默认值为当前歌单的歌曲数量
+ * @param {number} offset 偏移数量，用于分页
+ * @return {Promise<{ code: number; songs: any[]; privileges: any[] }>}
+ */
+export async function getPlaylistAllTracks(id: number, limit?: number, offset: number = 0) {
+    const params: any = { id, offset }
+    if (limit !== undefined) {
+        params.limit = limit
+    }
+    return request<{
+        code: number
+        songs: any[]
+        privileges: any[]
+    }>(`/playlist/track/all`, params)
+}
+
 // 歌单（网友精选碟）接口
 /**
  * @description: 调用此接口 , 可获取网友精选碟歌单

@@ -1,7 +1,8 @@
 import { createRouter } from './router'
 import HomePage from './pages/HomePage'
 import PlayerPage from './pages/PlayerPage'
-import PlayListPage from './pages/PlayListPage'
+import PlaylistPage from './pages/PlaylistPage'
+import PlaylistDetailPage from './pages/PlaylistDetailPage'
 import { h } from './core'
 
 // 获取应用容器
@@ -22,7 +23,11 @@ const routes = [
   },
   {
     path: '/playlist',
-    component: () => h(PlayListPage, {})
+    component: () => h(PlaylistPage, {})
+  },
+  {
+    path: '/playlist/:id',
+    component: () => h(PlaylistDetailPage, {})
   }
 ]
 

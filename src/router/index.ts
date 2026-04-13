@@ -98,9 +98,45 @@ class Router {
 
   private matchRoute(path: string, routes: RouteConfig[]): (() => VNode) | null {
     for (const route of routes) {
+      // 检查是否完全匹配
       if (route.path === path) {
         return route.component
       }
+      
+      // 检查动态路由匹配（如 /playlist/:id）
+      const routePattern = route.path
+      const pathSegments = path.split('/').filter(Boolean)
+      const patternSegments = routePattern.split('/').filter(Boolean)
+      
+      // 如果段数相同，可能是动态路由
+      if (pathSegments.length === patternSegments.length) {
+        let isMatch = true
+        const params: Record<string, string> = {}
+        
+        for (let i = 0; i < patternSegments.length; i++) {
+          const patternSegment = patternSegments[i]
+          const pathSegment = pathSegments[i]
+          
+          // 如果模式段是动态参数（以:开头）
+          if (patternSegment.startsWith(':')) {
+            const paramName = patternSegment.substring(1)
+            params[paramName] = pathSegment
+          } 
+          // 否则必须是完全匹配
+          else if (patternSegment !== pathSegment) {
+            isMatch = false
+            break
+          }
+        }
+        
+        // 如果匹配成功，更新 currentRoute 的 params
+        if (isMatch) {
+          this.currentRoute.params = params
+          return route.component
+        }
+      }
+      
+      // 递归检查子路由
       if (route.children) {
         const matched = this.matchRoute(path, route.children)
         if (matched) {
@@ -115,7 +151,11 @@ class Router {
   push(path: string) {
     window.history.pushState(null, '', path)
     this.state.currentRoute = path
-    this.currentRoute = this.parseRoute(path)
+    // 重置 params，将在 matchRoute 中重新填充
+    this.currentRoute = {
+      ...this.parseRoute(path),
+      params: {}
+    }
     this.render()
   }
 
@@ -123,7 +163,11 @@ class Router {
   replace(path: string) {
     window.history.replaceState(null, '', path)
     this.state.currentRoute = path
-    this.currentRoute = this.parseRoute(path)
+    // 重置 params，将在 matchRoute 中重新填充
+    this.currentRoute = {
+      ...this.parseRoute(path),
+      params: {}
+    }
     this.render()
   }
 
