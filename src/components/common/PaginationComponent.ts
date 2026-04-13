@@ -3,10 +3,25 @@ import { h, compileComponent } from '../../core'
 interface PaginationProps {
   currentPage: number
   totalPages: number
+  pageSize?: number
+  pageSizes?: number[]
 }
 
 const PaginationComponent = {
   setup(props: PaginationProps, { emit }: any){
+    // 🔥 默认每页显示条数选项
+    const defaultPageSizes = [10, 20, 50, 100]
+    
+    // 🔥 获取当前每页显示条数
+    const currentPageSize = () => {
+      return props.pageSize || defaultPageSizes[0]
+    }
+    
+    // 🔥 获取可用的每页显示条数数组
+    const availablePageSizes = () => {
+      return props.pageSizes || defaultPageSizes
+    }
+    
     // 🔥 生成智能页码数组，包含省略号逻辑
     const pageNumbers = () => {
       const pages: (number | string)[] = []
@@ -61,65 +76,98 @@ const PaginationComponent = {
       }
     }
     
+    // 🔥 处理每页显示条数变化
+    const handlePageSizeChange = (event: Event) => {
+      const target = event.target as HTMLSelectElement
+      const newPageSize = Number(target.value)
+      emit('pageSizeChange', newPageSize)
+    }
+    
     // 🔥 关键修复：直接返回 props 对象，不要解构 props 的值
     // 这样模板通过 props.currentPage 访问，保持响应式
     return { 
       props,
       pageNumbers,
-      handlePageChange 
+      handlePageChange,
+      handlePageSizeChange,
+      currentPageSize,
+      availablePageSizes
     }
   },
-  props: ['currentPage', 'totalPages'],
-  emits: ['pageChange'],
+  props: ['currentPage', 'totalPages', 'pageSize', 'pageSizes'],
+  emits: ['pageChange', 'pageSizeChange'],
   template: `
-    <div class="flex justify-center items-center gap-2 mt-12 mb-8">
-      <!-- 上一页 -->
-      <button
-        @click="handlePageChange(props.currentPage - 1)"
-        :disabled="props.currentPage === 1"
-        :class="props.currentPage === 1 ? 
-          'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 
-          'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-        class="px-3 py-1.5 rounded text-sm border transition-colors"
-      >
-        < 上一页
-      </button>
+    <div class="flex flex-col items-center gap-4 mt-12 mb-8">
+      <!-- 分页控制区 -->
+      <div class="flex justify-center items-center gap-2">
+        <!-- 上一页 -->
+        <button
+          @click="handlePageChange(props.currentPage - 1)"
+          :disabled="props.currentPage === 1"
+          :class="props.currentPage === 1 ? 
+            'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 
+            'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
+          class="px-3 py-1.5 rounded text-sm border transition-colors"
+        >
+          < 上一页
+        </button>
 
-      <!-- 页码 -->
-      <div class="flex items-center space-x-2">
-        <div v-for="page in pageNumbers()" :key="page">
-          <!-- 省略号 -->
-          <span
-            v-if="page === '...'"
-            class="px-2 py-1.5 text-gray-500 text-sm"
+        <!-- 页码 -->
+        <div class="flex items-center space-x-2">
+          <div v-for="page in pageNumbers()" :key="page">
+            <!-- 省略号 -->
+            <span
+              v-if="page === '...'"
+              class="px-2 py-1.5 text-gray-500 text-sm"
+            >
+              ...
+            </span>
+            <!-- 页码按钮 -->
+            <button
+              v-else
+              @click="handlePageChange(page)"
+              :class="props.currentPage === page ? 
+                'bg-primary text-white border-primary' : 
+                'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
+              class="min-w-[32px] px-2 py-1.5 rounded text-sm border transition-colors"
+            >
+              {{ page }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 下一页 -->
+        <button
+          @click="handlePageChange(props.currentPage + 1)"
+          :disabled="props.currentPage === props.totalPages"
+          :class="props.currentPage === props.totalPages ? 
+            'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 
+            'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
+          class="px-3 py-1.5 rounded text-sm border transition-colors"
+        >
+          下一页 >
+        </button>
+        <!-- 每页显示条数选择器 -->
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <span>每页显示</span>
+          <select
+            @change="handlePageSizeChange"
+            :value="currentPageSize()"
+            class="px-2 py-1 border border-gray-300 rounded text-sm bg-white hover:border-gray-400 focus:outline-none focus:border-primary transition-colors"
           >
-            ...
-          </span>
-          <!-- 页码按钮 -->
-          <button
-            v-else
-            @click="handlePageChange(page)"
-            :class="props.currentPage === page ? 
-              'bg-primary text-white border-primary' : 
-              'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-            class="min-w-[32px] px-2 py-1.5 rounded text-sm border transition-colors"
-          >
-            {{ page }}
-          </button>
+            <option 
+              v-for="size in availablePageSizes()" 
+              :key="size" 
+              :value="size"
+            >
+              {{ size }}
+            </option>
+          </select>
+          <span>条</span>
         </div>
       </div>
+      
 
-      <!-- 下一页 -->
-      <button
-        @click="handlePageChange(props.currentPage + 1)"
-        :disabled="props.currentPage === props.totalPages"
-        :class="props.currentPage === props.totalPages ? 
-          'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 
-          'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'"
-        class="px-3 py-1.5 rounded text-sm border transition-colors"
-      >
-        下一页 >
-      </button>
     </div>
   `
 }

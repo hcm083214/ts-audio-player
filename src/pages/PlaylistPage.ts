@@ -27,7 +27,7 @@ const categoryIcons: Record<string, string> = {
  */
 function getCategoryGroups(categories: SongCategory[], categoriesMap: Record<string, string>): CategoryGroup[] {
   const groups: Record<string, string[]> = {}
-  
+
   // 按 category 字段分组
   categories.forEach(cat => {
     const groupName = categoriesMap[String(cat.category)]
@@ -38,7 +38,7 @@ function getCategoryGroups(categories: SongCategory[], categoriesMap: Record<str
       groups[groupName].push(cat.name)
     }
   })
-  
+
   // 转换为数组格式并添加图标
   return Object.entries(groups).map(([name, cats]) => ({
     name,
@@ -56,7 +56,7 @@ const PlayListPage = {
     const currentPage = ref(1)
     const pageSize = ref(30)
     const loading = ref(false)
-    
+
 
     // 分类分组配置（从 API 动态生成）
     const categoryGroups = ref<CategoryGroup[]>([])
@@ -75,16 +75,14 @@ const PlayListPage = {
     })
 
     // 加载歌单列表
-    async function loadPlaylists(page: number = 1) {
+    async function loadPlaylists(page: number = 1,pageSize: number = 32) {
       try {
         loading.value = true
-        const offset = (page - 1) * pageSize.value
-        const res = await getTopPlaylist(currentCategory.value, 'hot', pageSize.value, offset)
-        console.log("🚀 ~ loadPlaylists ~ res:", res)
+        const offset = (page - 1) * pageSize
+        const res = await getTopPlaylist(currentCategory.value, 'hot', pageSize, offset)
         playlists.value = res.playlists || []
         total.value = res.total || 0
         currentPage.value = page
-        console.log("🚀 ~ loadPlaylists ~ currentPage.value:", currentPage.value)
       } catch (error) {
         console.error('Failed to load playlists:', error)
       } finally {
@@ -100,15 +98,19 @@ const PlayListPage = {
 
     // 切换分页
     function changePage(page: number) {
-      console.log("🚀 ~ changePage ~ page:", page)
       if (page < 1 || page > totalPages.value) return
       currentPage.value = page
       loadPlaylists(page)
     }
 
+    function handlePageSizeChange(size: number) {
+      pageSize.value = size
+      loadPlaylists(currentPage.value,size)
+    }
+
     // 计算总页数
     const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
-    
+
 
     return {
       allCategories,
@@ -122,6 +124,7 @@ const PlayListPage = {
       selectCategory,
       changePage,
       totalPages,
+      handlePageSizeChange
     }
   },
   components: { PlaylistCardComponent, PaginationComponent, PlaylistBannerComponent },
@@ -155,7 +158,9 @@ const PlayListPage = {
         <PaginationComponent
           :current-page="currentPage"
           :total-pages="totalPages"
+          :page-sizes="[8, 16, 24, 40, 80]"
           @page-change="changePage"
+          @page-size-change="handlePageSizeChange"
         />
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { h, compileComponent, ref } from '../../core'
 import type { SongCategory } from '../../api/HomeApi'
+import { useRouter } from '../../router'
 
 interface CategoryGroup {
     name: string
@@ -34,10 +35,16 @@ const PlaylistBannerComponent = {
             showCategoryDropdown.value = false
         }
 
+        function handleGoHomePage(){
+          const router = useRouter()
+          router.push('/')
+        }
+
         return {
             showCategoryDropdown,
             handleChangeCategoryDropdown,
-            handleSelectCategory
+            handleSelectCategory,
+            handleGoHomePage
         }
     },
     template: `
@@ -103,8 +110,8 @@ const PlaylistBannerComponent = {
 
           <!-- 右侧：排序按钮 -->
           <div class="flex items-center gap-2">
-            <button class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-              热门
+            <button @click="handleGoHomePage" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+              首页
             </button>
           </div>
         </div>
