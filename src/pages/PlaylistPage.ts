@@ -134,7 +134,7 @@ const PlayListPage = {
       <PlaylistBannerComponent
         :current-category="currentCategory"
         :category-groups="categoryGroups"
-        @selectCategory="selectCategory"
+        @select-category="selectCategory"
       />
 
       <!-- 歌单列表 -->

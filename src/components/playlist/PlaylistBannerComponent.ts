@@ -19,13 +19,12 @@ const categoryIcons: Record<string, string> = {
 
 const PlaylistBannerComponent = {
     props: ['currentCategory',  'categoryGroups'],
-    emits: ['selectCategory', 'changeCategoryDropdown'],
+    emits: ['selectCategory'],
     setup(props: any, context: any) {
         const { emit } = context
         const showCategoryDropdown = ref(false)
         // 切换分类下拉菜单
         function handleChangeCategoryDropdown() {
-            emit('changeCategoryDropdown')
             showCategoryDropdown.value = !showCategoryDropdown.value
         }
 
