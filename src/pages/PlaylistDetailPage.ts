@@ -147,7 +147,7 @@ const PlaylistDetailPage = {
           class="mb-6 px-4 py-2 text-gray-600 hover:text-primary transition-colors flex items-center gap-2"
         >
           <svg width="16" height="16" class="inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-play" width="100%" height="100%"></use>
+            <use xlink:href="#icon-back" width="100%" height="100%"></use>
           </svg>
           返回
         </button>
@@ -262,9 +262,9 @@ const PlaylistDetailPage = {
           >
             <!-- 序号/播放按钮 -->
             <div class="flex items-center justify-center">
-              <span class="group-hover:hidden text-gray-500">{{ (currentPage - 1) * pageSize + index + 1 }}</span>
-              <svg class="w-5 h-5 text-primary hidden group-hover:block" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
+              <span class="text-gray-500 mr-1">{{ (currentPage - 1) * pageSize + index + 1 }}</span>
+              <svg width="16" height="16" class="inline-block" style="display: inline-block;">
+                <use xlink:href="#icon-play" width="100%" height="100%"></use>
               </svg>
             </div>
             
@@ -281,7 +281,7 @@ const PlaylistDetailPage = {
             
             <!-- 歌手 -->
             <div class="text-gray-600 truncate">
-              {{ track.ar ? track.ar.map((a: any) => a.name).join('/') : (track.artists ? track.artists.map((a: any) => a.name).join('/') : '未知') }}
+              {{ track.ar ? track.ar.map(a => a.name).join('/') : (track.artists ? track.artists.map(a => a.name).join('/') : '未知') }}
             </div>
             
             <!-- 专辑 -->
