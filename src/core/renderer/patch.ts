@@ -1,5 +1,48 @@
 import { VNode } from './types'
 import { mount } from './mount'
+import { ReactiveEffect } from '../reactivity/reactive'
+
+/**
+ * 渲染组件 - 使用 effect 包裹 render 函数实现响应式更新
+ */
+function renderComponent(component: any, props: any, container: HTMLElement, effectInstance?: ReactiveEffect): void {
+  let renderFn: Function
+  let setupResult: any
+  
+  if (component.setup) {
+    console.log('[renderComponent] 执行 setup 方法')
+    setupResult = component.setup(props, { emit: (event: string, ...args: any[]) => {} })
+    console.log('[renderComponent] setup 返回:', setupResult)
+    
+    if (typeof setupResult === 'function') {
+      renderFn = setupResult
+    } else if (setupResult && typeof setupResult.render === 'function') {
+      renderFn = setupResult.render
+    } else {
+      renderFn = component.render
+    }
+  } else if (component.render) {
+    renderFn = component.render
+  } else {
+    console.warn('[renderComponent] 组件没有 render 方法')
+    return
+  }
+  
+  // 使用 effect 包裹 render 函数
+  const effectFn = new ReactiveEffect(() => {
+    const subTree = renderFn(props, setupResult)
+    console.log('[renderComponent] render 返回的 subTree:', subTree)
+    
+    if (subTree) {
+      // 清空容器并重新挂载
+      container.innerHTML = ''
+      mount(subTree, container)
+    }
+  })
+  
+  // 执行 effect，触发首次渲染
+  effectFn.effect()
+}
 
 /**
  * 更新虚拟 DOM - 基于 mVue.ts 简化实现
@@ -17,42 +60,8 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
   if (n2 && typeof n2.type === 'object' && n2.type !== null) {
     console.log('[Patch] 检测到对象式组件')
     
-    const component = n2.type as any
-    let renderFn: Function
-    let setupResult: any
-    
-    if (component.setup) {
-      console.log('[Patch] 执行 setup 方法')
-      setupResult = component.setup(n2.props || {}, { emit: (event: string, ...args: any[]) => {} })
-      console.log('[Patch] setup 返回:', setupResult)
-      
-      if (typeof setupResult === 'function') {
-        renderFn = setupResult
-      } else if (setupResult && typeof setupResult.render === 'function') {
-        renderFn = setupResult.render
-      } else {
-        renderFn = component.render
-      }
-    } else if (component.render) {
-      renderFn = component.render
-    } else {
-      console.warn('[Patch] 组件没有 render 方法')
-      return
-    }
-    
-    // 调用 render 函数，同时传入 props 和 setupResult（如果有）
-    const subTree = renderFn(n2.props || {}, setupResult)
-    console.log('[Patch] render 返回的 subTree:', subTree)
-    
-    if (!n1) {
-      if (subTree) {
-        mount(subTree, container)
-      }
-    } else {
-      if (n1.component?.subTree && subTree) {
-        patch(n1.component.subTree, subTree, container)
-      }
-    }
+    // 使用 renderComponent 处理对象式组件
+    renderComponent(n2.type, n2.props || {}, container)
     return
   }
   
