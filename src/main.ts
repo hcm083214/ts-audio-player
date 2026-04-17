@@ -1,8 +1,10 @@
 console.log('[Main] 开始执行 main.ts')
 
+import { compileComponent } from './core/compiler/compileComponent'
+import { h } from './core/renderer/h'
 import { createRouter } from './router'
 import TestPage from './pages/TestPage'
-import { h } from './core/renderer/h'
+import HomePage from './pages/HomePage'
 
 console.log('[Main] 模块导入完成')
 

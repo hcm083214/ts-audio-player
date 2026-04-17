@@ -60,31 +60,40 @@ function tokenize(template: string) {
     const char = template[i];
     if (char === '<') {
       if (template[i + 1] === '/') {
-        const match = template.slice(i).match(/^<\/\w+>/);
+        // 使用捕获组准确提取结束标签名
+        const match = template.slice(i).match(/^<\/(\w+)>/);
         if (match) {
-          tokens.push({ type: 'TAG_END', value: match[0].slice(2, -1) });
+          console.log('[Tokenize] 结束标签:', match[1], '完整匹配:', match[0]);
+          tokens.push({ type: 'TAG_END', value: match[1] });
           i += match[0].length;
+        } else {
+          // 如果匹配失败，将当前字符视为普通文本
+          console.log('[Tokenize] 结束标签匹配失败，当前位置:', i, '内容:', template.slice(i, i + 10));
+          tokens.push({ type: 'TEXT', value: char });
+          i++;
         }
       } else {
-        const match = template.slice(i).match(/^<\w+(\s[^>]*)?>/);
+        const match = template.slice(i).match(/^<(\w+)(\s[^>]*)?>/);
         if (match) {
-          const tagContent = match[0];
-          const tagName = tagContent.slice(1).split(/\s/)[0];
-          const attrsStr = tagContent.slice(1 + tagName.length, -1);
+          const tagName = match[1]; // 直接从捕获组获取标签名
+          const attrsStr = match[2] || ''; // 属性字符串（可能为空）
           const { props, directives } = parseProps(attrsStr);
+          console.log('[Tokenize] 开始标签:', tagName, '属性:', props, '指令:', directives, '完整匹配:', match[0]);
           tokens.push({ type: 'TAG_START', value: tagName, props, directives });
-          i += tagContent.length;
+          i += match[0].length;
         }
       }
     } else if (char === '{') {
       const match = template.slice(i).match(/^\{\{([^}]+)\}\}/);
       if (match) {
+        console.log('[Tokenize] 插值:', match[1], '完整匹配:', match[0]);
         tokens.push({ type: 'INTERPOLATION', value: match[1].trim() });
         i += match[0].length;
       }
     } else {
       const match = template.slice(i).match(/^[^{<]+/);
       if (match) {
+        console.log('[Tokenize] 文本:', match[0], '完整匹配:', match[0]);
         tokens.push({ type: 'TEXT', value: match[0] });
         i += match[0].length;
       }
@@ -189,25 +198,22 @@ function generate(ast: any) {
     }
 
     // 属性绑定处理
-    const finalProps: any = {};
+    const propsEntries: string[] = [];
     for (const key in props) {
       const val = props[key];
-      if (key.startsWith(':')) finalProps[key.slice(1)] = `ctx.${val}`;
-      else if (key.startsWith('@')) finalProps[key] = val;
-      else {
-        // 转义属性值中的特殊字符
-        const escapedVal = val
-          .replace(/\\/g, '\\\\')
-          .replace(/'/g, "\\'")
-          .replace(/"/g, '\\"')
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
-        finalProps[key] = `'${escapedVal}'`;
+      if (key.startsWith(':')) {
+        // 动态绑定：直接使用 ctx.xxx（不加引号）
+        propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
+      } else if (key.startsWith('@')) {
+        // 事件绑定
+        propsEntries.push(`${JSON.stringify(key)}: ${val}`);
+      } else {
+        // 静态属性：使用 JSON.stringify 自动添加引号
+        propsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
       }
     }
     
-    const propsStr = JSON.stringify(finalProps).replace(/"ctx\.(.*?)"/g, '$1').replace(/"\$event/g, '$event');
+    const propsStr = `{${propsEntries.join(', ')}}`;
     const childrenStr = node.children.length ? `[${node.children.map(genNode).join(',')}]` : '[]';
     const hCode = `h('${node.tag}', ${propsStr}, ${childrenStr})`;
 
@@ -217,7 +223,12 @@ function generate(ast: any) {
     if (node.directives.if) {
       if (node.elseNode) {
         // 生成 else 节点的代码
-        const elseProps = JSON.stringify(node.elseNode.props || {}).replace(/"ctx\.(.*?)"/g, '$1');
+        const elsePropsEntries: string[] = [];
+        for (const key in node.elseNode.props || {}) {
+          const val = node.elseNode.props[key];
+          elsePropsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
+        }
+        const elseProps = `{${elsePropsEntries.join(', ')}}`;
         const elseChildren = node.elseNode.children.length ? `[${node.elseNode.children.map(genNode).join(',')}]` : '[]';
         const elseCode = `h('${node.elseNode.tag}', ${elseProps}, ${elseChildren})`;
         

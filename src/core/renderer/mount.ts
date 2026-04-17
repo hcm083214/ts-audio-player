@@ -101,7 +101,15 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       if (typeof vnode.children === 'string') {
         el.textContent = vnode.children;
       } else if (Array.isArray(vnode.children)) {
-        vnode.children.forEach((child: VNode) => mount(child, el));
+        vnode.children.forEach((child: any) => {
+          // 如果子节点是字符串，直接创建文本节点
+          if (typeof child === 'string') {
+            el.appendChild(document.createTextNode(child));
+          } else {
+            // 否则递归挂载 VNode
+            mount(child, el);
+          }
+        });
       }
     }
     
@@ -124,11 +132,29 @@ function setElementProps(el: any, key: string, value: any, prevValue?: any) {
     if (prevValue) el.removeEventListener(event, prevValue);
     if (value) el.addEventListener(event, value);
   } else if (key === 'class') {
-    el.className = value;
+    // SVG 元素的 className 是只读的，必须使用 setAttribute
+    console.log('[setElementProps] 设置 class:', value, '元素类型:', el.tagName);
+    if (el instanceof SVGElement) {
+      el.setAttribute('class', value);
+    } else {
+      el.className = value;
+    }
   } else if (key === 'style') {
-    Object.assign(el.style, value);
+    // style 可能是字符串或对象
+    console.log('[setElementProps] 设置 style:', value, '元素类型:', el.tagName);
+    if (typeof value === 'string') {
+      el.style.cssText = value;
+    } else if (typeof value === 'object') {
+      Object.assign(el.style, value);
+    }
   } else {
+    // 清理属性值中可能的多余引号
+    let cleanValue = value;
+    if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+      cleanValue = value.slice(1, -1);
+    }
     // SVG 属性通常区分大小写，但 setAttribute 大部分情况兼容
-    el.setAttribute(key, value);
+    console.log('[setElementProps] 设置属性:', key, '=', cleanValue, '元素类型:', el.tagName);
+    el.setAttribute(key, cleanValue);
   }
 }
