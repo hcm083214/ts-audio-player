@@ -39,11 +39,12 @@ function parseProps(attrStr: string) {
   const directives: any = {};
   if (!attrStr) return { props, directives };
 
-  const attrMatches = attrStr.matchAll(/(\w+|:[\w-]+|v-[\w-]+)="([^"]*)"/g);
+  const attrMatches = attrStr.matchAll(/(\w+|:[\w-]+|@[\w-]+|v-[\w-]+)="([^"]*)"/g);
   for (const m of attrMatches) {
     const key = m[1];
     const value = m[2];
     if (key.startsWith(':')) props[key.slice(1)] = value;
+    else if (key.startsWith('@')) props[key] = value;  // 事件绑定
     else if (key.startsWith('v-')) directives[key.slice(2)] = value;
     else props[key] = value;
   }
@@ -206,10 +207,33 @@ function generate(ast: any) {
       const val = props[key];
       if (key.startsWith(':')) {
         // 动态绑定：直接使用 ctx.xxx（不加引号）
+        console.log('[Generate] 动态绑定:', key.slice(1), '=', val);
         propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
       } else if (key.startsWith('@')) {
-        // 事件绑定
-        propsEntries.push(`${JSON.stringify(key)}: ${val}`);
+        // 事件绑定：转换为 onClick 格式
+        const eventName = 'on' + key.slice(1); // @click -> onClick
+        console.log('[Generate] 事件绑定:', key, '->', eventName, '=', val);
+        
+        // 判断是表达式还是函数引用
+        // 如果是函数名（如 increment），直接使用 ctx.xxx
+        // 如果是表达式（如 count++），需要将变量替换为 ctx.xxx.value
+        const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(val.trim());
+        
+        if (isSimpleIdentifier) {
+          // 函数引用：increment -> ctx.increment
+          propsEntries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
+        } else {
+          // 表达式：count++ -> ctx.count.value++
+          const handlerCode = val.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+            // 跳过 JavaScript 关键字和特殊变量
+            if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
+              return varName;
+            }
+            // 将变量名替换为 ctx.xxx.value（因为都是 Ref 对象）
+            return `ctx.${varName}.value`;
+          });
+          propsEntries.push(`${JSON.stringify(eventName)}: () => { ${handlerCode} }`);
+        }
       } else {
         // 静态属性：使用 JSON.stringify 自动添加引号
         propsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
@@ -265,9 +289,6 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
   const renderFn = compile(template);
   return function(props: any, setupState?: any) {
     const ctx = { ...props, ...(setupState || {}) };
-    console.log('[RuntimeCompiler] ctx:', ctx);
-    console.log('[RuntimeCompiler] ctx.count:', ctx.count);
-    console.log('[RuntimeCompiler] ctx.count?.value:', ctx.count?.value);
     return renderFn(h, ctx);
   };
 }
