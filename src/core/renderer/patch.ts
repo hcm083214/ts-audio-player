@@ -1,223 +1,173 @@
-import { VNode, ComponentInstance, Fragment, Component } from './types'
-import { reactive, triggerUnmounted } from '../reactivity/reactive'
+import { VNode } from './types'
 import { mount } from './mount'
-import { patchProp } from './patchProp'
 
 /**
- * 更新虚拟 DOM
- * @param oldVnode 旧的虚拟 DOM 节点
- * @param newVnode 新的虚拟 DOM 节点
+ * 更新虚拟 DOM - 基于 mVue.ts 简化实现
+ * @param n1 旧的虚拟 DOM 节点
+ * @param n2 新的虚拟 DOM 节点
+ * @param container 容器元素
  */
-export function patch(oldVnode: VNode, newVnode: VNode): void {
-  // 🔥 关键修复：添加空值检查，防止 v-if 返回 null 时导致错误
-  if (!oldVnode || !newVnode) {
+export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement): void {
+  console.log('[Patch] 开始 patch')
+  console.log('[Patch] n1:', n1)
+  console.log('[Patch] n2:', n2)
+  console.log('[Patch] n2?.type:', n2?.type)
+  
+  // 处理对象式组件（Options API）
+  if (n2 && typeof n2.type === 'object' && n2.type !== null) {
+    console.log('[Patch] 检测到对象式组件')
+    
+    const component = n2.type as any
+    let renderFn: Function
+    
+    if (component.setup) {
+      console.log('[Patch] 执行 setup 方法')
+      const setupResult = component.setup(n2.props || {}, { emit: (event: string, ...args: any[]) => {} })
+      console.log('[Patch] setup 返回:', setupResult)
+      
+      if (typeof setupResult === 'function') {
+        renderFn = setupResult
+      } else if (setupResult && typeof setupResult.render === 'function') {
+        renderFn = setupResult.render
+      } else {
+        renderFn = component.render
+      }
+    } else if (component.render) {
+      renderFn = component.render
+    } else {
+      console.warn('[Patch] 组件没有 render 方法')
+      return
+    }
+    
+    const subTree = renderFn(n2.props || {})
+    console.log('[Patch] render 返回的 subTree:', subTree)
+    
+    if (!n1) {
+      if (subTree) {
+        mount(subTree, container)
+      }
+    } else {
+      if (n1.component?.subTree && subTree) {
+        patch(n1.component.subTree, subTree, container)
+      }
+    }
     return
   }
   
-  if (oldVnode.type !== newVnode.type) {
-    const parent = oldVnode.el?.parentNode
+  // 处理函数式组件
+  if (n2 && typeof n2.type === 'function') {
+    console.log('[Patch] 检测到函数式组件，调用组件函数...')
+    const subTree = n2.type(n2.props || {})
+    console.log('[Patch] 组件返回的 subTree:', subTree)
     
-    // 🔥 如果是组件，触发 onUnmounted 回调
-    if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
-      triggerUnmounted()
-    }
-    
-    if (parent) {
-      parent.removeChild(oldVnode.el!)
-      mount(newVnode, parent as Element)
+    if (!n1) {
+      // 首次挂载
+      if (subTree) {
+        mount(subTree, container)
+      }
+    } else {
+      // 更新 - 需要递归 patch
+      if (n1.component?.subTree && subTree) {
+        patch(n1.component.subTree, subTree, container)
+      }
     }
     return
   }
-
-// 🔥 修复组件更新逻辑：当检测到是组件时，需要同步 props 并交由 effect 重新渲染
-  if (typeof oldVnode.type === 'object' && 'setup' in oldVnode.type) {
-    const instance = oldVnode.component
-
-    if (!instance) {
-      console.error('Component instance not found in vnode.component')
-      return
-    }
-
-    const newProps = newVnode.props || {}
-    const oldProps = oldVnode.props || {}
-
-    // 同步 props 到响应式实例 props
-    Object.keys({ ...oldProps, ...newProps }).forEach(key => {
-      if (newProps[key] === undefined) {
-        delete instance.props[key]
-      } else {
-        instance.props[key] = newProps[key]
-      }
-    })
-
-    newVnode.component = instance
-
-    // 组件更新由 effect 函数处理，不需要手动调用 render 函数
-    return
+  
+  // 类型不同，替换整个节点
+  if (n1 && n2 && n1.type !== n2.type) { 
+    console.log('[Patch] 类型不同，替换节点')
+    n1.el?.remove(); 
+    n1 = null; 
   }
-
-  // 🔥 关键修复：处理 Fragment 节点
-  if (oldVnode.type === Fragment) {
-    // Fragment 没有实际的 DOM 元素，直接更新子节点
-    const oldChildren = Array.isArray(oldVnode.children) ? oldVnode.children : []
-    const newChildren = Array.isArray(newVnode.children) ? newVnode.children : []
-    
-    // 🔥 关键修复：Fragment 使用父容器的引用
-    // 如果 oldVnode.el 不存在，说明是首次挂载，应该走 mount 流程
-    const container = oldVnode.el || newVnode.el
-    
-    if (!container) {
-      console.warn('⚠️ Fragment has no container reference, skipping patch')
-      return
-    }
-    
-    // 🔥 确保新 vnode 也有 el 引用
-    newVnode.el = container
-    
-    const minLength = Math.min(oldChildren.length, newChildren.length)
-
-    for (let i = 0; i < minLength; i++) {
-      const oldChild = oldChildren[i]
-      const newChild = newChildren[i]
-      
-      // 处理字符串类型的子节点
-      if (typeof oldChild === 'string' && typeof newChild === 'string') {
-        if (oldChild !== newChild) {
-          const textNode = document.createTextNode(newChild)
-          const oldTextNode = container.childNodes[i]
-          if (oldTextNode.nodeType === Node.TEXT_NODE) {
-            container.replaceChild(textNode, oldTextNode)
-          }
-        }
-      } else if (typeof oldChild === 'string' && typeof newChild !== 'string') {
-        const oldTextNode = container.childNodes[i]
-        if (oldTextNode.nodeType === Node.TEXT_NODE) {
-          container.removeChild(oldTextNode)
-        }
-        mount(newChild, container)
-      } else if (typeof oldChild !== 'string' && typeof newChild === 'string') {
-        const textNode = document.createTextNode(newChild)
-        const oldEl = (oldChild as VNode).el
-        if (oldEl) {
-          container.replaceChild(textNode, oldEl)
-        }
-      } else {
-        patch(oldChild as VNode, newChild as VNode)
-      }
-    }
-
-    // 添加新子节点
-    if (newChildren.length > oldChildren.length) {
-      for (let i = minLength; i < newChildren.length; i++) {
-        const newChild = newChildren[i]
-        if (typeof newChild === 'string') {
-          container.appendChild(document.createTextNode(newChild))
-        } else {
-          mount(newChild, container)
-        }
-      }
-    }
-
-    // 移除旧子节点
-    if (newChildren.length < oldChildren.length) {
-      for (let i = minLength; i < oldChildren.length; i++) {
-        const oldChild = oldChildren[i]
-        if (typeof oldChild === 'string') {
-          const textNode = container.childNodes[i]
-          if (textNode.nodeType === Node.TEXT_NODE) {
-            container.removeChild(textNode)
-          }
-        } else if ((oldChild as VNode).el) {
-          container.removeChild((oldChild as VNode).el!)
-        }
-      }
-    }
-    
-    return
+  
+  if (!n1 && !n2) {
+    console.log('[Patch] n1 和 n2 都为空，返回')
+    return;
   }
-
-  const el = oldVnode.el as Element
-  newVnode.el = el
-
-  if (typeof newVnode.children === 'string') {
-    if (oldVnode.children !== newVnode.children) {
-      el.textContent = newVnode.children
-    }
-  } else {
+  
+  // 挂载新节点
+  if (!n1) {
+    console.log('[Patch] 挂载新节点')
+    mount(n2!, container);
+  }
+  // 卸载旧节点
+  else if (!n2) {
+    console.log('[Patch] 卸载旧节点')
+    n1.el?.remove();
+  }
+  // 更新节点
+  else {
+    console.log('[Patch] 更新节点')
     // 更新属性
-    for (const [key, value] of Object.entries(newVnode.props || {})) {
-      if (oldVnode.props?.[key] !== value) {
-        patchProp(el, key, oldVnode.props?.[key], value)
+    if (n2.props) {
+      for (const key in n2.props) {
+        setElementProps(n1.el!, key, n2.props[key], n1.props?.[key]);
       }
     }
-
-    // 移除旧属性
-    for (const key of Object.keys(oldVnode.props || {})) {
-      if (!(key in (newVnode.props || {}))) {
-        patchProp(el, key, oldVnode.props?.[key], null)
+    
+    // 移除旧属性中不再存在的键
+    if (n1.props) {
+      for (const key in n1.props) {
+        if (!(key in (n2.props || {}))) {
+          setElementProps(n1.el!, key, null, n1.props[key]);
+        }
       }
     }
-
-    // 更新子节点
-    const oldChildren = Array.isArray(oldVnode.children) ? oldVnode.children : []
-    const newChildren = Array.isArray(newVnode.children) ? newVnode.children : []
-    const minLength = Math.min(oldChildren.length, newChildren.length)
-
-    for (let i = 0; i < minLength; i++) {
-      const oldChild = oldChildren[i]
-      const newChild = newChildren[i]
+    
+    // 更新文本子节点
+    if (typeof n2.children === 'string') {
+      if (n1.children !== n2.children) {
+        n1.el!.textContent = n2.children;
+      }
+    } 
+    // 更新数组子节点
+    else if (Array.isArray(n2.children)) {
+      const c1 = (n1.children as VNode[]) || [];
       
-      // 处理字符串类型的子节点
-      if (typeof oldChild === 'string' && typeof newChild === 'string') {
-        if (oldChild !== newChild) {
-          const textNode = document.createTextNode(newChild)
-          const oldTextNode = el.childNodes[i]
-          if (oldTextNode.nodeType === Node.TEXT_NODE) {
-            el.replaceChild(textNode, oldTextNode)
-          }
-        }
-      } else if (typeof oldChild === 'string' && typeof newChild !== 'string') {
-        const oldTextNode = el.childNodes[i]
-        if (oldTextNode.nodeType === Node.TEXT_NODE) {
-          el.removeChild(oldTextNode)
-        }
-        mount(newChild, el)
-      } else if (typeof oldChild !== 'string' && typeof newChild === 'string') {
-        const textNode = document.createTextNode(newChild)
-        const oldEl = (oldChild as VNode).el
-        if (oldEl) {
-          el.replaceChild(textNode, oldEl)
-        }
-      } else {
-        patch(oldChild as VNode, newChild as VNode)
+      // 子节点数量不同，重新渲染
+      if (c1.length !== n2.children.length) {
+        n1.el!.innerHTML = '';
+        n2.children.forEach((child: VNode) => mount(child, n1.el!));
+      } 
+      // 子节点数量相同，逐个对比更新
+      else {
+        n2.children.forEach((child: VNode, i: number) => {
+          patch(c1[i], child, n1.el! as HTMLElement);
+        });
       }
     }
+    
+    // 更新 el 引用
+    n2.el = n1.el;
+  }
+}
 
-    // 添加新子节点
-    if (newChildren.length > oldChildren.length) {
-      for (let i = minLength; i < newChildren.length; i++) {
-        const newChild = newChildren[i]
-        if (typeof newChild === 'string') {
-          el.appendChild(document.createTextNode(newChild))
-        } else {
-          mount(newChild, el)
-        }
-      }
+/**
+ * 设置元素属性 - 与 mount.ts 保持一致
+ */
+function setElementProps(el: any, key: string, value: any, prevValue?: any) {
+  if (key.startsWith('on')) {
+    const event = key.slice(2).toLowerCase();
+    if (prevValue) el.removeEventListener(event, prevValue);
+    if (value) el.addEventListener(event, value);
+  } else if (key === 'class') {
+    el.className = value;
+  } else if (key === 'style') {
+    if (value && typeof value === 'object') {
+      Object.assign(el.style, value);
+    } else {
+      el.style.cssText = value;
     }
-
-    // 移除旧子节点
-    if (newChildren.length < oldChildren.length) {
-      for (let i = minLength; i < oldChildren.length; i++) {
-        const oldChild = oldChildren[i]
-        if (typeof oldChild === 'string') {
-          const textNode = el.childNodes[i]
-          if (textNode.nodeType === Node.TEXT_NODE) {
-            el.removeChild(textNode)
-          }
-        } else if ((oldChild as VNode).el) {
-          el.removeChild((oldChild as VNode).el!)
-        }
-      }
+  } else if (key in el) {
+    // 处理 DOM 属性 (如 value, checked 等)
+    el[key] = value;
+  } else {
+    // 处理普通 HTML 属性
+    if (value == null || value === false) {
+      el.removeAttribute(key);
+    } else {
+      el.setAttribute(key, value);
     }
   }
 }

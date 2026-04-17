@@ -1,9 +1,12 @@
 import { h, render, VNode } from '../core'
 
+// 路由模式
+type RouterMode = 'hash' | 'history'
+
 // 路由配置类型
 interface RouteConfig {
   path: string
-  component: () => VNode
+  component: () => VNode | null
   children?: RouteConfig[]
 }
 
@@ -46,15 +49,20 @@ let currentRouter: Router | null = null
 class Router {
   private state: RouterState
   private container: Element
+  private mode: RouterMode
   public currentRoute: RouteLocation
 
-  constructor(routes: RouteConfig[], container: Element) {
+  constructor(routes: RouteConfig[], container: Element, mode: RouterMode = 'hash') {
+    this.mode = mode
+    this.container = container
+    
+    // 根据模式获取初始路径
+    const path = this.getCurrentPath()
     this.state = {
-      currentRoute: window.location.pathname,
+      currentRoute: path,
       routes
     }
-    this.container = container
-    this.currentRoute = this.parseRoute(window.location.pathname)
+    this.currentRoute = this.parseRoute(path)
     
     // 设置为当前全局路由实例
     currentRouter = this
@@ -62,13 +70,34 @@ class Router {
     this.init()
   }
 
+  // 获取当前路径（根据模式）
+  private getCurrentPath(): string {
+    if (this.mode === 'hash') {
+      return window.location.hash.slice(1) || '/'
+    } else {
+      return window.location.pathname
+    }
+  }
+
   private init() {
-    // 监听路由变化
-    window.addEventListener('popstate', () => {
-      this.state.currentRoute = window.location.pathname
-      this.currentRoute = this.parseRoute(window.location.pathname)
-      this.render()
-    })
+    // 根据模式监听不同的事件
+    if (this.mode === 'hash') {
+      // hash 模式：监听 hashchange
+      window.addEventListener('hashchange', () => {
+        const path = this.getCurrentPath()
+        this.state.currentRoute = path
+        this.currentRoute = this.parseRoute(path)
+        this.render()
+      })
+    } else {
+      // history 模式：监听 popstate
+      window.addEventListener('popstate', () => {
+        const path = this.getCurrentPath()
+        this.state.currentRoute = path
+        this.currentRoute = this.parseRoute(path)
+        this.render()
+      })
+    }
 
     // 初始渲染
     this.render()
@@ -86,17 +115,45 @@ class Router {
   }
 
   private render() {
+    console.log('[Router] ========== render 开始 ==========')
     const { currentRoute, routes } = this.state
+    console.log('[Router] 当前路由:', currentRoute)
+    console.log('[Router] 所有路由:', routes.map(r => r.path))
+    
     const component = this.matchRoute(currentRoute, routes)
+    console.log('[Router] 匹配到的组件:', component)
+    
     if (component) {
       // 清空容器
       this.container.innerHTML = ''
+      console.log('[Router] 容器已清空')
+      
       // 渲染组件
-      render(component(), this.container)
+      try {
+        const vnode = component()
+        console.log('[Router] 生成的 VNode:', vnode)
+        
+        if (vnode) {
+          render(vnode, this.container as HTMLElement)
+          console.log('[Router] 渲染完成')
+          console.log('[Router] 容器内容:', this.container.innerHTML.substring(0, 200))
+        } else {
+          console.error('[Router] 组件返回了 null VNode')
+          this.container.innerHTML = '<div style="color: red; padding: 20px;">错误：组件返回了 null</div>'
+        }
+      } catch (error) {
+        console.error('[Router] 渲染时发生错误:', error)
+        this.container.innerHTML = `<div style="color: red; padding: 20px;">渲染错误：${error}</div>`
+      }
+    } else {
+      console.error('[Router] 未匹配到任何路由')
+      this.container.innerHTML = '<div style="color: red; padding: 20px;">404 - 路由未找到</div>'
     }
+    
+    console.log('[Router] ========== render 结束 ==========')
   }
 
-  private matchRoute(path: string, routes: RouteConfig[]): (() => VNode) | null {
+  private matchRoute(path: string, routes: RouteConfig[]): (() => VNode | null) | null {
     for (const route of routes) {
       // 检查是否完全匹配
       if (route.path === path) {
@@ -149,26 +206,32 @@ class Router {
 
   // 导航到指定路径
   push(path: string) {
-    window.history.pushState(null, '', path)
-    this.state.currentRoute = path
-    // 重置 params，将在 matchRoute 中重新填充
-    this.currentRoute = {
-      ...this.parseRoute(path),
-      params: {}
+    if (this.mode === 'hash') {
+      window.location.hash = path
+    } else {
+      window.history.pushState(null, '', path)
+      this.state.currentRoute = path
+      this.currentRoute = {
+        ...this.parseRoute(path),
+        params: {}
+      }
+      this.render()
     }
-    this.render()
   }
 
   // 替换当前路径
   replace(path: string) {
-    window.history.replaceState(null, '', path)
-    this.state.currentRoute = path
-    // 重置 params，将在 matchRoute 中重新填充
-    this.currentRoute = {
-      ...this.parseRoute(path),
-      params: {}
+    if (this.mode === 'hash') {
+      window.location.hash = path
+    } else {
+      window.history.replaceState(null, '', path)
+      this.state.currentRoute = path
+      this.currentRoute = {
+        ...this.parseRoute(path),
+        params: {}
+      }
+      this.render()
     }
-    this.render()
   }
 
   // 前进/后退
@@ -203,8 +266,8 @@ class Router {
 }
 
 // 创建路由实例
-function createRouter(routes: RouteConfig[], container: Element): RouterInstance {
-  return new Router(routes, container) as unknown as RouterInstance
+function createRouter(routes: RouteConfig[], container: Element, mode: RouterMode = 'hash'): RouterInstance {
+  return new Router(routes, container, mode) as unknown as RouterInstance
 }
 
 // 组合式 API：获取路由实例
@@ -224,4 +287,4 @@ function useRoute(): RouteLocation {
 }
 
 export { createRouter, useRouter, useRoute }
-export type { RouteConfig, RouteLocation, RouterInstance }
+export type { RouteConfig, RouteLocation, RouterInstance, RouterMode }

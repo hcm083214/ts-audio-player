@@ -7,16 +7,19 @@ export interface ComponentContext {
 export interface Component {
   setup?: (props: any, context: ComponentContext) => any
   render?: (...args: any[]) => VNode
+  template?: string  // 支持模板字符串
   props?: string[]
   emits?: string[]
 }
 
-// 虚拟 DOM 节点
+// 虚拟 DOM 节点 - 基于 mVue.ts 实现
 export interface VNode {
-  type: VNodeType
-  props: Record<string, any>
-  children: VNode[] | string
-  el?: Element
+  type: string | Function  // 支持字符串标签或组件函数
+  props?: any
+  children?: VNode[] | string
+  el?: HTMLElement | SVGElement  // 支持 SVG 元素
+  key?: any
+  tag?: string  // 原始标签名，用于 SVG 判断
   component?: ComponentInstance
 }
 
@@ -30,7 +33,7 @@ export interface ComponentInstance {
   subTree: VNode | null
 }
 
-// 片段类型符号 - 实际导出
+// 片段类型符号
 export const Fragment = Symbol('Fragment')
 
 // 虚拟 DOM 节点类型

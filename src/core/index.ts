@@ -1,8 +1,34 @@
-// Core 模块统一导出 - 主入口
-// 从 renderer 导出所有核心功能（包括响应式系统和编译器）
-export * from './renderer'
+// Core 模块统一导出 - 基于 mVue.ts 架构
 
-// 也可以单独导出各模块
-// export * from './reactivity/reactive'
-// export * from './renderer'
-// export * from './compiler'
+// 响应式系统
+export { 
+  reactive, 
+  ref, 
+  computed, 
+  watchEffect, 
+  onMounted, 
+  onUnmounted, 
+  triggerMounted, 
+  triggerUnmounted,
+  ReactiveEffect
+} from './reactivity/reactive'
+
+// 渲染器核心
+export { h } from './renderer/h'
+export { mount } from './renderer/mount'
+export { patch } from './renderer/patch'
+export { render } from './renderer/render'
+
+// 类型定义
+export type { VNode, Component, ComponentInstance, VNodeType } from './renderer/types'
+export { Fragment } from './renderer/types'
+
+// 编译器
+export { compile, createRuntimeCompiler, compileComponent } from './compiler/compileComponent'
+export { interpolate, evaluateExpression } from './compiler/interpolate'
+
+// 路由系统
+export { createRouter } from './compiler/router'
+
+// 向后兼容：导出 buildVNode（如果存在）
+// export { buildVNode } from './renderer/buildVNode'

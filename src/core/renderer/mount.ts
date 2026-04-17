@@ -1,79 +1,134 @@
-import { VNode, Fragment } from './types'
-import { patchProp } from './patchProp'
-import { mountComponent } from './mountComponent'
+import { VNode } from './types'
 
 /**
- * 挂载虚拟 DOM 到真实 DOM
+ * 挂载虚拟 DOM 到真实 DOM - 基于 mVue.ts 实现，支持 SVG
  * @param vnode 虚拟 DOM 节点
  * @param container 容器元素
+ * @param anchor 锚点节点（用于插入位置控制）
  */
-export function mount(vnode: VNode, container: Element): void {
-  if (!vnode) {
-    return
-  }
+export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor: Node | null = null): void {
+  console.log('[Mount] 开始挂载 vnode:', vnode)
+  console.log('[Mount] vnode.type:', vnode.type)
+  console.log('[Mount] vnode.type 类型:', typeof vnode.type)
   
-  if (typeof vnode.type === 'object' && 'setup' in vnode.type) {
-    if (vnode.component) {
+  if (!vnode) {
+    console.log('[Mount] vnode 为空，返回')
+    return;
+  }
+
+  // 处理对象式组件（Options API）
+  if (typeof vnode.type === 'object' && vnode.type !== null) {
+    console.log('[Mount] 检测到对象式组件')
+    
+    const component = vnode.type as any
+    let renderFn: Function
+    
+    // 如果有 setup 方法，先执行 setup
+    if (component.setup) {
+      console.log('[Mount] 执行 setup 方法')
+      const setupResult = component.setup(vnode.props || {}, { emit: (event: string, ...args: any[]) => {} })
+      console.log('[Mount] setup 返回:', setupResult)
+      
+      // 如果 setup 返回了 render 函数
+      if (typeof setupResult === 'function') {
+        renderFn = setupResult
+      } else if (setupResult && typeof setupResult.render === 'function') {
+        renderFn = setupResult.render
+      } else {
+        // 使用组件的 render 方法
+        renderFn = component.render
+      }
+    } else if (component.render) {
+      // 直接使用组件的 render 方法
+      console.log('[Mount] 使用组件的 render 方法')
+      renderFn = component.render
+    } else {
+      console.warn('[Mount] 组件没有 render 方法')
       return
     }
     
-    mountComponent(vnode, container)
+    // 调用 render 函数获取子 VNode
+    console.log('[Mount] 调用 render 函数...')
+    const subTree = renderFn(vnode.props || {})
+    console.log('[Mount] render 返回的 subTree:', subTree)
+    
+    if (subTree) {
+      console.log('[Mount] 递归挂载 subTree...')
+      mount(subTree, container, anchor)
+    } else {
+      console.warn('[Mount] render 返回了 null subTree')
+    }
     return
   }
 
-  if (typeof vnode.children === 'string') {
-    // 文本节点
-    const textNode = document.createTextNode(vnode.children)
-    vnode.el = textNode as any
-    container.appendChild(textNode)
+  // 处理函数式组件
+  if (typeof vnode.type === 'function') {
+    console.log('[Mount] 检测到函数式组件，调用组件函数...')
+    // 调用组件函数获取子 VNode
+    const subTree = vnode.type(vnode.props || {})
+    console.log('[Mount] 组件返回的 subTree:', subTree)
+    
+    if (subTree) {
+      console.log('[Mount] 递归挂载 subTree...')
+      mount(subTree, container, anchor)
+    } else {
+      console.warn('[Mount] 组件返回了 null subTree')
+    }
     return
   }
 
-  if (vnode.type === Fragment) {
-    // 片段节点
-    // console.log('🔍 Mount Fragment with', vnode.children.length, 'children to container:', container.tagName, container.className)
-    vnode.el = container as any
-    vnode.children.forEach((child, index) => {
-      // 处理字符串类型的子节点（文本节点）
-      if (typeof child === 'string') {
-        const textNode = document.createTextNode(child)
-        container.appendChild(textNode)
-      } else if (child) {
-        mount(child, container)
+  // 判断是否为 SVG 容器或自身就是 svg 标签
+  const isSvg = vnode.type === 'svg' || container.tagName.toLowerCase() === 'svg';
+  console.log('[Mount] 创建元素:', vnode.type, 'isSvg:', isSvg)
+  
+  if (typeof vnode.type === 'string') {
+    // 创建元素时判断是否为 SVG
+    const el = isSvg 
+      ? document.createElementNS('http://www.w3.org/2000/svg', vnode.type)
+      : document.createElement(vnode.type);
+    
+    vnode.el = el as any;
+    
+    // 设置属性
+    if (vnode.props) {
+      for (const key in vnode.props) {
+        setElementProps(el, key, vnode.props[key]);
       }
-    })
-    return
+    }
+    
+    // 处理子节点
+    if (vnode.children) {
+      if (typeof vnode.children === 'string') {
+        el.textContent = vnode.children;
+      } else if (Array.isArray(vnode.children)) {
+        vnode.children.forEach((child: VNode) => mount(child, el));
+      }
+    }
+    
+    // 插入到容器中
+    if (anchor) {
+      container.insertBefore(el as any, anchor);
+    } else {
+      container.appendChild(el as any);
+    }
   }
+}
 
-  // 元素节点
-  let element: Element
-  if (vnode.type === 'svg') {
-    // 🔥 关键修复：SVG 元素必须使用 createElementNS 创建
-    element = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  } else if (vnode.type === 'use') {
-    element = document.createElementNS('http://www.w3.org/2000/svg', 'use')
+/**
+ * 设置元素属性 - 基于 mVue.ts 实现
+ */
+function setElementProps(el: any, key: string, value: any, prevValue?: any) {
+  if (key.startsWith('on')) {
+    // 事件绑定
+    const event = key.slice(2).toLowerCase();
+    if (prevValue) el.removeEventListener(event, prevValue);
+    if (value) el.addEventListener(event, value);
+  } else if (key === 'class') {
+    el.className = value;
+  } else if (key === 'style') {
+    Object.assign(el.style, value);
   } else {
-    element = document.createElement(vnode.type as string)
+    // SVG 属性通常区分大小写，但 setAttribute 大部分情况兼容
+    el.setAttribute(key, value);
   }
-  vnode.el = element
-
-  // 设置属性
-  for (const [key, value] of Object.entries(vnode.props || {})) {
-    patchProp(element, key, null, value)
-  }
-
-  // 挂载子节点
-  if (Array.isArray(vnode.children)) {
-    vnode.children.forEach(child => {
-      // 处理字符串类型的子节点（文本节点）
-      if (typeof child === 'string') {
-        const textNode = document.createTextNode(child)
-        element.appendChild(textNode)
-      } else if (child) {
-        mount(child, element)
-      }
-    })
-  }
-
-  container.appendChild(element)
 }

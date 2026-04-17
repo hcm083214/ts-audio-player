@@ -34,7 +34,7 @@ const PlayerBarComponent = {
           <svg width="20" height="20" class="cursor-pointer hover:text-primary inline-block" style="display: inline-block;">
             <use xlink:href="#icon-expand" width="100%" height="100%"></use>
           </svg>
-          <a href="#/player" class="text-primary hover:underline">展开</a>
+          <a href="javascript:void(0)" @click="$router.push('/player')" class="text-primary hover:underline">展开</a>
         </div>
       </div>
     </footer>
