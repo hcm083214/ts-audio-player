@@ -1,8 +1,9 @@
-import { compileComponent } from '../core/compiler/compileComponent'
+import { compileComponent,ref } from '../core'
 
 const TestPage = {
     setup(){
-        return {} // setup 必须返回一个对象
+        const count = ref(0)
+        return { count } // setup 必须返回一个对象
     },
     template: `
         <div class="p-4">
@@ -11,6 +12,8 @@ const TestPage = {
             </svg>
             <h1 class="text-2xl font-bold mb-4">测试页面</h1>
             <p>这是一个测试页面，用于验证路由和组件渲染是否正常。</p>
+            <button @click="count++">点击增加</button>
+            <p>计数: {{ count }}</p>
         </div>
     `
 }

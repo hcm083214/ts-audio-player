@@ -19,10 +19,11 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
     
     const component = n2.type as any
     let renderFn: Function
+    let setupResult: any
     
     if (component.setup) {
       console.log('[Patch] 执行 setup 方法')
-      const setupResult = component.setup(n2.props || {}, { emit: (event: string, ...args: any[]) => {} })
+      setupResult = component.setup(n2.props || {}, { emit: (event: string, ...args: any[]) => {} })
       console.log('[Patch] setup 返回:', setupResult)
       
       if (typeof setupResult === 'function') {
@@ -39,7 +40,8 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
       return
     }
     
-    const subTree = renderFn(n2.props || {})
+    // 调用 render 函数，同时传入 props 和 setupResult（如果有）
+    const subTree = renderFn(n2.props || {}, setupResult)
     console.log('[Patch] render 返回的 subTree:', subTree)
     
     if (!n1) {

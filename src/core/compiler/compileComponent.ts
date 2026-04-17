@@ -86,8 +86,9 @@ function tokenize(template: string) {
     } else if (char === '{') {
       const match = template.slice(i).match(/^\{\{([^}]+)\}\}/);
       if (match) {
-        console.log('[Tokenize] 插值:', match[1], '完整匹配:', match[0]);
-        tokens.push({ type: 'INTERPOLATION', value: match[1].trim() });
+        const trimmedValue = match[1].trim();
+        console.log('[Tokenize] 插值: 原始值="' + match[1] + '", 修剪后="' + trimmedValue + '"');
+        tokens.push({ type: 'INTERPOLATION', value: trimmedValue });
         i += match[0].length;
       }
     } else {
@@ -171,7 +172,9 @@ function generate(ast: any) {
       return genElementContent(node);
     } 
     else if (node.type === 'Interpolation') {
-      return `ctx.${node.content}`;
+      console.log('[Generate] 插值节点 content:', JSON.stringify(node.content));
+      // 插值表达式需要访问 .value 来解包 Ref
+      return `String(ctx.${node.content}?.value ?? ctx.${node.content})`;
     } 
     else if (node.type === 'Text') {
       // 转义特殊字符，防止生成的代码出现语法错误
@@ -251,6 +254,7 @@ export function compile(template: string) {
   const tokens = tokenize(template);
   const ast = parse(tokens);
   const code = generate(ast);
+  console.log('[Compile] 生成的代码:', code);
   return new Function('h', 'ctx', `return ${code}`);
 }
 
@@ -261,6 +265,9 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
   const renderFn = compile(template);
   return function(props: any, setupState?: any) {
     const ctx = { ...props, ...(setupState || {}) };
+    console.log('[RuntimeCompiler] ctx:', ctx);
+    console.log('[RuntimeCompiler] ctx.count:', ctx.count);
+    console.log('[RuntimeCompiler] ctx.count?.value:', ctx.count?.value);
     return renderFn(h, ctx);
   };
 }
