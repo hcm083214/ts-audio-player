@@ -7,15 +7,16 @@ import { VNode } from './types'
  * @param anchor 锚点节点（用于插入位置控制）
  */
 export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor: Node | null = null): void {
-  console.log('[Mount] 开始挂载 vnode:', vnode)
-  console.log('[Mount] vnode.type:', vnode.type)
-  console.log('[Mount] vnode.type 类型:', typeof vnode.type)
-  
+  // 先检查 vnode 是否为空
   if (!vnode) {
     console.log('[Mount] vnode 为空，返回')
     return;
   }
-
+  
+  console.log('[Mount] 开始挂载 vnode:', vnode)
+  console.log('[Mount] vnode.type:', vnode.type)
+  console.log('[Mount] vnode.type 类型:', typeof vnode.type)
+  
   // 处理对象式组件（Options API）
   if (typeof vnode.type === 'object' && vnode.type !== null) {
     console.log('[Mount] 检测到对象式组件')
@@ -102,6 +103,11 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
         el.textContent = vnode.children;
       } else if (Array.isArray(vnode.children)) {
         vnode.children.forEach((child: any) => {
+          // 过滤掉 null 和 undefined（来自 v-if 返回的 null）
+          if (child === null || child === undefined) {
+            return;
+          }
+          
           // 如果子节点是字符串，直接创建文本节点
           if (typeof child === 'string') {
             el.appendChild(document.createTextNode(child));

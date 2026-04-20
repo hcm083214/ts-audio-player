@@ -39,14 +39,27 @@ function parseProps(attrStr: string) {
   const directives: any = {};
   if (!attrStr) return { props, directives };
 
-  const attrMatches = attrStr.matchAll(/(\w+|:[\w-]+|@[\w-]+|v-[\w-]+)="([^"]*)"/g);
+  // 支持两种格式：有值的属性 key="value" 和无值的布尔属性 key
+  // 注意：v- 开头的指令必须放在 \w+ 之前，避免 v-if 被拆分为 v 和 if
+  const attrMatches = attrStr.matchAll(/(:[\w-]+|@[\w-]+|v-[\w-]+|\w+)(?:="([^"]*)")?/g);
   for (const m of attrMatches) {
     const key = m[1];
-    const value = m[2];
-    if (key.startsWith(':')) props[key.slice(1)] = value;
-    else if (key.startsWith('@')) props[key] = value;  // 事件绑定
-    else if (key.startsWith('v-')) directives[key.slice(2)] = value;
-    else props[key] = value;
+    const value = m[2]; // 可能为 undefined（无值属性）
+    
+    if (key.startsWith(':')) {
+      // 动态绑定
+      props[key.slice(1)] = value;
+    } else if (key.startsWith('@')) {
+      // 事件绑定
+      props[key] = value;
+    } else if (key.startsWith('v-')) {
+      // 指令：v-else 没有值，其他指令可能有值
+      const directiveName = key.slice(2); // else, if, for, etc.
+      directives[directiveName] = value === undefined ? '' : value;
+    } else {
+      // 普通属性
+      props[key] = value;
+    }
   }
   return { props, directives };
 }
@@ -140,30 +153,65 @@ function parse(tokens: any[]) {
 function generate(ast: any) {
   // 预处理 AST：将 v-else 挂载到 v-if 上
   function processIfElse(children: any[]) {
+    console.log('[AST] processIfElse 开始处理，子节点数量:', children.length);
+    
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
-      if (child.directives && child.directives.else) {
-        // 找到前一个非 v-else 节点（通常是 v-if）
+      console.log('[AST] 检查节点', i, ':', child.tag, '指令:', child.directives);
+      
+      if (child.directives && 'else' in child.directives) {
+        console.log('[AST] ✓ 找到 v-else 节点:', child.tag, '索引:', i);
+        
+        // 找到前一个有 v-if 指令的节点
         let prevIndex = i - 1;
-        while(prevIndex >= 0 && children[prevIndex].directives && children[prevIndex].directives.else) {
+        console.log('[AST] 开始向前查找 v-if，起始索引:', prevIndex);
+        
+        // 向前查找，跳过所有非 v-if 节点
+        while(prevIndex >= 0) {
+          const prevNode = children[prevIndex];
+          console.log('[AST] 检查索引', prevIndex, ':', prevNode?.tag, '指令:', prevNode?.directives);
+          
+          // 如果找到 v-if 节点，停止
+          if (prevNode && prevNode.directives && prevNode.directives.if) {
+            console.log('[AST] ✓ 找到匹配的 v-if 节点，索引:', prevIndex);
+            break;
+          }
+          
+          // 否则继续向前找
           prevIndex--;
         }
-        if (prevIndex >= 0) {
+        
+        if (prevIndex >= 0 && children[prevIndex].directives && children[prevIndex].directives.if) {
           // 将 else 逻辑附加到前一个节点
           children[prevIndex].elseNode = child;
           // 标记当前节点稍后删除
           child._toRemove = true;
+          console.log('[AST] ✓ v-else 已挂载到节点:', children[prevIndex].tag);
+        } else {
+          console.warn('[AST] ✗ v-else 没有找到匹配的 v-if 节点，prevIndex:', prevIndex);
         }
+      } else {
+        console.log('[AST] 节点', i, '不是 v-else，跳过');
       }
-      if (child.children) processIfElse(child.children);
+      if (child.children && child.children.length > 0) {
+        console.log('[AST] 递归处理子节点:', child.tag);
+        processIfElse(child.children);
+      }
     }
     // 移除标记的节点
+    console.log('[AST] 移除前子节点数量:', children.length);
     for (let i = children.length - 1; i >= 0; i--) {
-      if (children[i]._toRemove) children.splice(i, 1);
+      if (children[i]._toRemove) {
+        console.log('[AST] 移除 v-else 节点:', children[i].tag);
+        children.splice(i, 1);
+      }
     }
+    console.log('[AST] 移除后子节点数量:', children.length);
   }
   
+  console.log('[AST] 开始处理 AST，根节点子节点数量:', ast.children.length);
   processIfElse(ast.children);
+  console.log('[AST] AST 处理完成，根节点子节点数量:', ast.children.length);
 
   function genNode(node: any): string {
     if (node.type === 'Root') {
@@ -210,8 +258,15 @@ function generate(ast: any) {
         console.log('[Generate] 动态绑定:', key.slice(1), '=', val);
         propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
       } else if (key.startsWith('@')) {
-        // 事件绑定：转换为 onClick 格式
-        const eventName = 'on' + key.slice(1); // @click -> onClick
+        // 事件绑定：转换为 onClick 格式（大驼峰）
+        const rawEventName = key.slice(1); // click, page-change, etc.
+        // 将 kebab-case 转换为 PascalCase
+        const pascalEventName = rawEventName
+          .split('-')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('');
+        const eventName = 'on' + pascalEventName; // @click -> onClick, @page-change -> onPageChange
+        
         console.log('[Generate] 事件绑定:', key, '->', eventName, '=', val);
         
         // 判断是表达式还是函数引用
@@ -244,24 +299,146 @@ function generate(ast: any) {
     const childrenStr = node.children.length ? `[${node.children.map(genNode).join(',')}]` : '[]';
     const hCode = `h('${node.tag}', ${propsStr}, ${childrenStr})`;
 
-    // 处理 v-if / v-else 逻辑
+    // 处理 v-for 逻辑
     let code = hCode;
     
-    if (node.directives.if) {
-      if (node.elseNode) {
-        // 生成 else 节点的代码
-        const elsePropsEntries: string[] = [];
-        for (const key in node.elseNode.props || {}) {
-          const val = node.elseNode.props[key];
-          elsePropsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
-        }
-        const elseProps = `{${elsePropsEntries.join(', ')}}`;
-        const elseChildren = node.elseNode.children.length ? `[${node.elseNode.children.map(genNode).join(',')}]` : '[]';
-        const elseCode = `h('${node.elseNode.tag}', ${elseProps}, ${elseChildren})`;
+    if (node.directives.for) {
+      const forExpression = node.directives.for;
+      // 解析 v-for 表达式：支持 "item in list" 或 "(item, index) in list" 格式
+      const match = forExpression.match(/^\s*(?:\(\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?:,\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*)?\)|([a-zA-Z_$][a-zA-Z0-9_$]*))\s+in\s+(.+)\s*$/);
+      
+      if (match) {
+        const itemVar = match[1] || match[3]; // 元素变量名
+        const indexVar = match[2]; // 索引变量名（可选）
+        const sourceExpr = match[4].trim(); // 数据源表达式
         
-        code = `${node.directives.if} ? ${code} : ${elseCode}`;
+        console.log('[Generate] v-for 解析:', { itemVar, indexVar, sourceExpr });
+        
+        // 生成 map 函数的参数
+        let mapParams = itemVar;
+        if (indexVar) {
+          mapParams += `, ${indexVar}`;
+        }
+        
+        console.log('[Generate] v-for 生成的 map 参数:', mapParams);
+        
+        // 生成带作用域的子节点代码
+        const generateScopedChildren = (children: any[]): string => {
+          return children.map((child: any) => {
+            if (child.type === 'Interpolation') {
+              // 检查插值表达式是否引用了循环变量
+              const content = child.content;
+              
+              // 如果引用了 item 或 index 变量，直接使用该变量（不需要 ctx 前缀）
+              if (content === itemVar || (indexVar && content === indexVar)) {
+                console.log('[Generate] v-for 作用域变量:', content);
+                return `String(${content})`;
+              }
+              
+              // 其他情况按正常逻辑处理（访问 ctx）
+              return `String(ctx.${content}?.value ?? ctx.${content})`;
+            } else if (child.type === 'Element') {
+              // 递归处理嵌套元素，生成 h() 调用
+              // 注意：这里简化处理，不处理嵌套元素的 v-for/v-if
+              const nestedPropsEntries: string[] = [];
+              for (const key in child.props || {}) {
+                const val = child.props[key];
+                if (key.startsWith(':')) {
+                  nestedPropsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
+                } else if (key.startsWith('@')) {
+                  const eventName = 'on' + key.slice(1);
+                  nestedPropsEntries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
+                } else {
+                  nestedPropsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
+                }
+              }
+              const nestedPropsStr = `{${nestedPropsEntries.join(', ')}}`;
+              const nestedChildrenStr = child.children.length ? `[${generateScopedChildren(child.children)}]` : '[]';
+              return `h('${child.tag}', ${nestedPropsStr}, ${nestedChildrenStr})`;
+            } else if (child.type === 'Text') {
+              const escapedContent = child.content
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
+              return `'${escapedContent}'`;
+            }
+            return '';
+          }).join(',');
+        };
+        
+        const scopedChildrenStr = `[${generateScopedChildren(node.children)}]`;
+        const scopedHCode = `h('${node.tag}', ${propsStr}, ${scopedChildrenStr})`;
+        
+        // 获取数据源（需要解包 Ref）
+        // sourceExpr 是变量名，需要通过 ctx 访问
+        const sourceAccess = `(ctx.${sourceExpr}?.value ?? ctx.${sourceExpr})`;
+        
+        console.log('[Generate] v-for 数据源访问:', sourceAccess);
+        
+        // 生成 map 调用
+        code = `${sourceAccess}.map((${mapParams}) => ${scopedHCode})`;
       } else {
-        code = `${node.directives.if} ? ${code} : null`;
+        console.warn('[Generate] v-for 表达式解析失败:', forExpression);
+      }
+    }
+    
+    // 处理 v-if / v-else 逻辑（在 v-for 之后处理）
+    if (node.directives.if) {
+      // v-if 条件表达式需要通过 ctx 访问变量
+      const ifCondition = node.directives.if.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+        // 跳过 JavaScript 关键字和特殊值
+        if (['true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
+          return varName;
+        }
+        // 将变量名替换为 ctx.xxx.value（因为都是 Ref 对象）
+        return `ctx.${varName}.value`;
+      });
+      
+      console.log('[Generate] v-if 条件:', node.directives.if, '->', ifCondition);
+      
+      if (node.elseNode) {
+        // 生成 else 节点的代码 - 需要完整处理属性绑定
+        const elseProps: any = { ...node.elseNode.props };
+        
+        // 处理 else 节点的属性绑定（与主节点相同的逻辑）
+        const elsePropsEntries: string[] = [];
+        for (const key in elseProps) {
+          const val = elseProps[key];
+          if (key.startsWith(':')) {
+            // 动态绑定
+            elsePropsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
+          } else if (key.startsWith('@')) {
+            // 事件绑定
+            const eventName = 'on' + key.slice(1);
+            const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(val.trim());
+            
+            if (isSimpleIdentifier) {
+              elsePropsEntries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
+            } else {
+              const handlerCode = val.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+                if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
+                  return varName;
+                }
+                return `ctx.${varName}.value`;
+              });
+              elsePropsEntries.push(`${JSON.stringify(eventName)}: () => { ${handlerCode} }`);
+            }
+          } else {
+            // 静态属性
+            elsePropsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
+          }
+        }
+        
+        const elsePropsStr = `{${elsePropsEntries.join(', ')}}`;
+        const elseChildren = node.elseNode.children.length ? `[${node.elseNode.children.map(genNode).join(',')}]` : '[]';
+        const elseCode = `h('${node.elseNode.tag}', ${elsePropsStr}, ${elseChildren})`;
+        
+        code = `${ifCondition} ? ${code} : ${elseCode}`;
+      } else {
+        code = `${ifCondition} ? ${code} : null`;
       }
     }
 
@@ -274,12 +451,29 @@ function generate(ast: any) {
 /**
  * 编译模板字符串为渲染函数
  */
-export function compile(template: string) {
+export function compile(template: string): (h: Function, ctx: any) => any {
   const tokens = tokenize(template);
   const ast = parse(tokens);
   const code = generate(ast);
   console.log('[Compile] 生成的代码:', code);
-  return new Function('h', 'ctx', `return ${code}`);
+  return new Function('h', 'ctx', `return ${code}`) as any;
+}
+
+/**
+ * 编译组件 - 将 template 转换为 render 函数
+ */
+export function compileComponent(component: any): any {
+  if (!component.template) {
+    return component;
+  }
+  
+  const renderFn = compile(component.template);
+  
+  // 返回新的组件对象，包含编译后的 render 函数
+  return {
+    ...component,
+    render: renderFn
+  };
 }
 
 /**
@@ -293,18 +487,3 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
   };
 }
 
-/**
- * 编译组件 - 兼容旧接口
- */
-export function compileComponent(component: any) {
-  if (!component.template) {
-    return component;
-  }
-  
-  const renderFunction = createRuntimeCompiler(component.template, component.components);
-  
-  return {
-    ...component,
-    render: renderFunction
-  };
-}

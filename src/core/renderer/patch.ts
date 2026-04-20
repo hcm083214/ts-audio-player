@@ -1,5 +1,6 @@
 import { VNode } from './types'
 import { mount } from './mount'
+import { h } from './h'
 import { ReactiveEffect } from '../reactivity/reactive'
 
 /**
@@ -30,7 +31,22 @@ function renderComponent(component: any, props: any, container: HTMLElement, eff
   
   // 使用 effect 包裹 render 函数
   const effectFn = new ReactiveEffect(() => {
-    const subTree = renderFn(props, setupResult)
+    // 判断 renderFn 的签名类型
+    // 如果是编译后的函数：(h, ctx) => VNode
+    // 如果是旧版函数：(props, setupState) => VNode
+    
+    let subTree: any;
+    
+    // 检查 renderFn 是否是编译后的函数（通过 Function 构造函数创建的）
+    if (renderFn.length === 2) {
+      // 编译后的函数签名：(h, ctx)
+      const ctx = { ...props, ...(setupResult || {}) };
+      subTree = renderFn(h, ctx);
+    } else {
+      // 旧版函数签名：(props, setupState)
+      subTree = renderFn(props, setupResult);
+    }
+    
     console.log('[renderComponent] render 返回的 subTree:', subTree)
     
     if (subTree) {
@@ -139,11 +155,21 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
       // 子节点数量不同，重新渲染
       if (c1.length !== n2.children.length) {
         n1.el!.innerHTML = '';
-        n2.children.forEach((child: VNode) => mount(child, n1.el!));
+        n2.children.forEach((child: VNode) => {
+          // 过滤掉 null 和 undefined（来自 v-if 返回的 null）
+          if (child === null || child === undefined) {
+            return;
+          }
+          mount(child, n1.el!);
+        });
       } 
       // 子节点数量相同，逐个对比更新
       else {
         n2.children.forEach((child: VNode, i: number) => {
+          // 过滤掉 null 和 undefined
+          if (child === null || child === undefined) {
+            return;
+          }
           patch(c1[i], child, n1.el! as HTMLElement);
         });
       }

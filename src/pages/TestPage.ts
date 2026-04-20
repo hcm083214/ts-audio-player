@@ -1,7 +1,7 @@
-import { compileComponent,ref } from '../core'
+import { compileComponent, ref } from '../core'
 
 const TestPage = {
-    setup(){
+    setup() {
         const count = ref(0)
         const increment = () => {
             count.value++
@@ -11,7 +11,9 @@ const TestPage = {
             count.value--
             console.log("🚀 ~ decrease ~ count.value:", count.value)
         }
-        return { count, increment, decrease } // setup 必须返回一个对象
+        const arr = [1, 2, 3]
+        const isDisplay = ref(false)
+        return { count, increment, decrease, arr, isDisplay } // setup 必须返回一个对象
     },
     template: `
         <div class="p-4">
@@ -24,6 +26,11 @@ const TestPage = {
             <button @click="increment">点击增加</button>
             <button @click="decrease">点击减少</button>
             <p>计数: {{ count }}</p>
+            <div v-for="i in arr">{{ i }}</div>
+            <button @click="isDisplay = !isDisplay">切换显示</button>
+
+            <div v-if="isDisplay">显示的内容</div>
+            <div v-else>隐藏的内容</div>
         </div>
     `
 }
