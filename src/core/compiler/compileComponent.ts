@@ -39,26 +39,52 @@ function parseProps(attrStr: string) {
   const directives: any = {};
   if (!attrStr) return { props, directives };
 
-  // 支持两种格式：有值的属性 key="value" 和无值的布尔属性 key
-  // 注意：v- 开头的指令必须放在 \w+ 之前，避免 v-if 被拆分为 v 和 if
-  const attrMatches = attrStr.matchAll(/(:[\w-]+|@[\w-]+|v-[\w-]+|\w+)(?:="([^"]*)")?/g);
-  for (const m of attrMatches) {
-    const key = m[1];
-    const value = m[2]; // 可能为 undefined（无值属性）
+  // 改进的正则：支持包含引号、花括号、冒号等复杂值的属性
+  // 匹配模式：属性名（可选的 ="属性值"）
+  // 属性值可以是双引号包裹的任何内容（包括嵌套的单引号、花括号等）
+  const attrRegex = /([\w:@-]+)\s*=\s*"((?:[^"\\]|\\.)*)"|([\w:@-]+)\s*=\s*'((?:[^'\\]|\\.)*)'|([\w:@-]+)/g;
+  let match;
+  
+  while ((match = attrRegex.exec(attrStr)) !== null) {
+    let key: string;
+    let value: string | undefined;
+    
+    console.log('[ParseProps] 完整匹配结果:', match);
+    
+    if (match[1]) {
+      // 双引号属性值
+      key = match[1];
+      value = match[2];
+      console.log('[ParseProps] 匹配到双引号属性:', key, '=', value);
+    } else if (match[3]) {
+      // 单引号属性值
+      key = match[3];
+      value = match[4];
+      console.log('[ParseProps] 匹配到单引号属性:', key, '=', value);
+    } else {
+      // 无值属性（布尔属性）
+      key = match[5];
+      value = undefined;
+      console.log('[ParseProps] 匹配到无值属性:', key);
+    }
     
     if (key.startsWith(':')) {
-      // 动态绑定
-      props[key.slice(1)] = value;
+      // 动态绑定：保留原始键名（带冒号），在后续处理时再区分
+      props[key] = value;
+      console.log('[ParseProps] 动态绑定属性:', key, '=', value);
     } else if (key.startsWith('@')) {
       // 事件绑定
       props[key] = value;
+      console.log('[ParseProps] 事件绑定属性:', key, '=', value);
     } else if (key.startsWith('v-')) {
       // 指令：v-else 没有值，其他指令可能有值
       const directiveName = key.slice(2); // else, if, for, etc.
       directives[directiveName] = value === undefined ? '' : value;
+      console.log('[ParseProps] 指令属性:', key, '=', value);
     } else {
       // 普通属性
       props[key] = value;
+      console.log('[ParseProps] 静态属性:', key, '=', value);
     }
   }
   return { props, directives };
@@ -87,10 +113,11 @@ function tokenize(template: string) {
           i++;
         }
       } else {
-        const match = template.slice(i).match(/^<(\w+)(\s[^>]*)?>/);
+        // 使用 [\s\S] 替代 . 以匹配包括换行符在内的所有字符
+        const match = template.slice(i).match(/^<(\w+)([\s\S]*?)>/);
         if (match) {
           const tagName = match[1]; // 直接从捕获组获取标签名
-          const attrsStr = match[2] || ''; // 属性字符串（可能为空）
+          const attrsStr = match[2] || ''; // 属性字符串（可能为空，包含换行符）
           const { props, directives } = parseProps(attrsStr);
           console.log('[Tokenize] 开始标签:', tagName, '属性:', props, '指令:', directives, '完整匹配:', match[0]);
           tokens.push({ type: 'TAG_START', value: tagName, props, directives });
@@ -239,6 +266,92 @@ function generate(ast: any) {
     return '';
   }
 
+  // 辅助函数：智能替换变量，跳过字符串字面量和对象键名
+  function smartReplaceVariables(expr: string): string {
+    let result = '';
+    let i = 0;
+    const len = expr.length;
+    
+    while (i < len) {
+      const char = expr[i];
+      
+      // 检测字符串字面量（单引号或双引号）
+      if (char === '"' || char === "'") {
+        const quote = char;
+        result += char;
+        i++;
+        
+        // 提取字符串内容，保持原样
+        while (i < len && expr[i] !== quote) {
+          if (expr[i] === '\\') {
+            result += expr[i];
+            i++;
+            if (i < len) {
+              result += expr[i];
+              i++;
+            }
+          } else {
+            result += expr[i];
+            i++;
+          }
+        }
+        
+        if (i < len) {
+          result += expr[i];
+          i++;
+        }
+      } 
+      // 检测对象键名模式：identifier followed by colon
+      else if (/[a-zA-Z_$]/.test(char)) {
+        let identifier = '';
+        
+        while (i < len && /[a-zA-Z0-9_$\-]/.test(expr[i])) {
+          identifier += expr[i];
+          i++;
+        }
+        
+        // 跳过空白字符，检查是否是键名（后面跟着冒号）
+        let j = i;
+        while (j < len && /\s/.test(expr[j])) {
+          j++;
+        }
+        
+        if (j < len && expr[j] === ':') {
+          // 这是对象键名，保持原样不替换
+          result += identifier;
+        } else {
+          // 这是普通变量或值，需要替换
+          if (['true', 'false', 'null', 'undefined', 'this', 'in', 'of'].includes(identifier)) {
+            result += identifier;
+          } else {
+            result += `ctx.${identifier}.value`;
+          }
+        }
+      } else {
+        // 其他字符（空格、标点等），保持原样
+        result += char;
+        i++;
+      }
+    }
+    
+    return result;
+  }
+
+  // 辅助函数：处理 class 表达式中的变量（对象语法）
+  function processClassExpression(expr: string): string {
+    // 将表达式中的变量替换为 ctx.xxx.value
+    const processed = expr.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+      // 跳过 JavaScript 关键字、布尔值、字符串键等
+      if (['true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
+        return varName;
+      }
+      // 检查是否在字符串内部（简单判断：前后有引号）
+      // 这里简化处理，假设所有标识符都是变量
+      return `ctx.${varName}.value`;
+    });
+    return processed;
+  }
+
   function genElementContent(node: ASTElement): string {
     let props = { ...node.props };
     
@@ -249,8 +362,17 @@ function generate(ast: any) {
       props['@input'] = `$event => (ctx.${modelVar} = $event.target.value)`;
     }
 
+    // 分离静态 class 和动态 :class
+    let staticClass = props['class'];
+    delete props['class']; // 从 props 中移除，稍后合并
+    
+    let dynamicClassExpr = props[':class'];
+    delete props[':class']; // 从 props 中移除，稍后处理
+
     // 属性绑定处理
     const propsEntries: string[] = [];
+    
+    // 处理其他属性（除了 class）
     for (const key in props) {
       const val = props[key];
       if (key.startsWith(':')) {
@@ -292,6 +414,34 @@ function generate(ast: any) {
       } else {
         // 静态属性：使用 JSON.stringify 自动添加引号
         propsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
+      }
+    }
+    
+    // 处理 class 合并（静态 + 动态）- 参考《Vue.js 设计与实现》第 10.4 节
+    if (staticClass || dynamicClassExpr) {
+      let classCodeParts: string[] = [];
+      
+      // 添加静态 class
+      if (staticClass) {
+        classCodeParts.push(JSON.stringify(staticClass));
+      }
+      
+      // 添加动态 :class - 保持表达式原样，只替换变量
+      if (dynamicClassExpr) {
+        // 智能替换：跳过字符串字面量内部的标识符
+        const processedExpr = smartReplaceVariables(dynamicClassExpr);
+        
+        console.log('[Generate] :class 表达式:', dynamicClassExpr, '->', processedExpr);
+        
+        classCodeParts.push(processedExpr);
+      }
+      
+      // 生成最终的 class 表达式
+      if (classCodeParts.length === 1) {
+        propsEntries.unshift(`${JSON.stringify('class')}: ${classCodeParts[0]}`);
+      } else if (classCodeParts.length > 1) {
+        // 多个部分需要合并：使用 normalizeClass 辅助函数
+        propsEntries.unshift(`${JSON.stringify('class')}: normalizeClass([${classCodeParts.join(', ')}])`);
       }
     }
     
@@ -449,14 +599,45 @@ function generate(ast: any) {
 }
 
 /**
+ * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
+ * 用于规范化 class 值，支持字符串、对象、数组等多种格式
+ */
+function normalizeClass(value: any): string {
+  if (!value) return '';
+  
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  if (Array.isArray(value)) {
+    // 数组：递归处理每个元素，然后合并
+    return value.map(item => normalizeClass(item)).filter(Boolean).join(' ');
+  }
+  
+  if (typeof value === 'object') {
+    // 对象：{ className: boolean }
+    let result = '';
+    for (const key in value) {
+      if (value[key]) {
+        result += (result ? ' ' : '') + key;
+      }
+    }
+    return result;
+  }
+  
+  return String(value);
+}
+
+/**
  * 编译模板字符串为渲染函数
  */
-export function compile(template: string): (h: Function, ctx: any) => any {
+export function compile(template: string): (h: Function, ctx: any, normalizeClass: Function) => any {
   const tokens = tokenize(template);
   const ast = parse(tokens);
   const code = generate(ast);
   console.log('[Compile] 生成的代码:', code);
-  return new Function('h', 'ctx', `return ${code}`) as any;
+  // 将 normalizeClass 作为第三个参数传递
+  return new Function('h', 'ctx', 'normalizeClass', `return ${code}`) as any;
 }
 
 /**
@@ -483,7 +664,6 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
   const renderFn = compile(template);
   return function(props: any, setupState?: any) {
     const ctx = { ...props, ...(setupState || {}) };
-    return renderFn(h, ctx);
+    return renderFn(h, ctx, normalizeClass);
   };
 }
-

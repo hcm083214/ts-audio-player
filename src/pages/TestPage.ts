@@ -1,4 +1,4 @@
-import { compileComponent, ref } from '../core'
+import { compileComponent, ref, reactive, computed } from '../core'
 
 const TestPage = {
     setup() {
@@ -13,10 +13,30 @@ const TestPage = {
         }
         const arr = [1, 2, 3]
         const isDisplay = ref(false)
-        return { count, increment, decrease, arr, isDisplay } // setup 必须返回一个对象
+        const author = reactive({
+            name: 'John Doe',
+            books: [
+                'Vue 2 - Advanced Guide',
+                'Vue 3 - Basic Guide',
+                'Vue 4 - The Mystery'
+            ]
+        })
+
+        // 一个计算属性 ref
+        const publishedBooksMessage = computed(() => {
+            return author.books.length > 4 ? 'Yes' : 'No'
+        })
+
+        const isActive = ref(true)
+        const hasError = ref(false)
+        return { count, increment, decrease, arr, isDisplay, author, publishedBooksMessage , isActive, hasError } // setup 必须返回一个对象
     },
     template: `
         <div class="p-4">
+            <div
+                class="static"
+                :class="{ active: isActive, 'text-danger': hasError }"
+            ></div>
             <svg width="16" height="16" class="text-red-500 inline-block" style="display: inline-block;">
                 <use href="#icon-next" width="100%" height="100%"></use>
             </svg>
@@ -31,6 +51,9 @@ const TestPage = {
 
             <div v-if="isDisplay">显示的内容</div>
             <div v-else>隐藏的内容</div>
+
+            <p>Has published books:</p>
+            <span>{{ publishedBooksMessage }}</span>
         </div>
     `
 }

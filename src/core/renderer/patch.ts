@@ -4,6 +4,36 @@ import { h } from './h'
 import { ReactiveEffect } from '../reactivity/reactive'
 
 /**
+ * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
+ * 用于规范化 class 值，支持字符串、对象、数组等多种格式
+ */
+function normalizeClass(value: any): string {
+  if (!value) return '';
+  
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  if (Array.isArray(value)) {
+    // 数组：递归处理每个元素，然后合并
+    return value.map(item => normalizeClass(item)).filter(Boolean).join(' ');
+  }
+  
+  if (typeof value === 'object') {
+    // 对象：{ className: boolean }
+    let result = '';
+    for (const key in value) {
+      if (value[key]) {
+        result += (result ? ' ' : '') + key;
+      }
+    }
+    return result;
+  }
+  
+  return String(value);
+}
+
+/**
  * 渲染组件 - 使用 effect 包裹 render 函数实现响应式更新
  */
 function renderComponent(component: any, props: any, container: HTMLElement, effectInstance?: ReactiveEffect): void {
@@ -38,8 +68,12 @@ function renderComponent(component: any, props: any, container: HTMLElement, eff
     let subTree: any;
     
     // 检查 renderFn 是否是编译后的函数（通过 Function 构造函数创建的）
-    if (renderFn.length === 2) {
-      // 编译后的函数签名：(h, ctx)
+    if (renderFn.length === 3) {
+      // 编译后的函数签名：(h, ctx, normalizeClass)
+      const ctx = { ...props, ...(setupResult || {}) };
+      subTree = renderFn(h, ctx, normalizeClass);
+    } else if (renderFn.length === 2) {
+      // 旧版编译函数签名：(h, ctx)
       const ctx = { ...props, ...(setupResult || {}) };
       subTree = renderFn(h, ctx);
     } else {
