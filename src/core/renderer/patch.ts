@@ -1,4 +1,4 @@
-import { VNode } from './types'
+import { VNode, ComponentInstance } from './types'
 import { mount } from './mount'
 import { h } from './h'
 import { ReactiveEffect } from '../reactivity/reactive'
@@ -7,7 +7,7 @@ import { ReactiveEffect } from '../reactivity/reactive'
  * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
  * 用于规范化 class 值，支持字符串、对象、数组等多种格式
  */
-function normalizeClass(value: any): string {
+function normalizeClass(value: unknown): string {
   if (!value) return '';
   
   if (typeof value === 'string') {
@@ -21,9 +21,10 @@ function normalizeClass(value: any): string {
   
   if (typeof value === 'object') {
     // 对象：{ className: boolean }
+    const obj = value as Record<string, unknown>;
     let result = '';
-    for (const key in value) {
-      if (value[key]) {
+    for (const key in obj) {
+      if (obj[key]) {
         result += (result ? ' ' : '') + key;
       }
     }
@@ -36,24 +37,25 @@ function normalizeClass(value: any): string {
 /**
  * 渲染组件 - 使用 effect 包裹 render 函数实现响应式更新
  */
-function renderComponent(component: any, props: any, container: HTMLElement, effectInstance?: ReactiveEffect): void {
+function renderComponent(component: Record<string, unknown>, props: Record<string, unknown>, container: HTMLElement, effectInstance?: ReactiveEffect): void {
   let renderFn: Function
-  let setupResult: any
+  let setupResult: unknown
   
   if (component.setup) {
     console.log('[renderComponent] 执行 setup 方法')
-    setupResult = component.setup(props, { emit: (event: string, ...args: any[]) => {} })
+    const setupFn = component.setup as (props: Record<string, unknown>, context: { emit: (event: string, ...args: unknown[]) => void }) => unknown
+    setupResult = setupFn(props, { emit: (event: string, ...args: unknown[]) => {} })
     console.log('[renderComponent] setup 返回:', setupResult)
     
     if (typeof setupResult === 'function') {
-      renderFn = setupResult
-    } else if (setupResult && typeof setupResult.render === 'function') {
-      renderFn = setupResult.render
+      renderFn = setupResult as Function
+    } else if (setupResult && typeof setupResult === 'object' && 'render' in setupResult) {
+      renderFn = (setupResult as Record<string, unknown>).render as Function
     } else {
-      renderFn = component.render
+      renderFn = component.render as Function
     }
   } else if (component.render) {
-    renderFn = component.render
+    renderFn = component.render as Function
   } else {
     console.warn('[renderComponent] 组件没有 render 方法')
     return
@@ -65,20 +67,20 @@ function renderComponent(component: any, props: any, container: HTMLElement, eff
     // 如果是编译后的函数：(h, ctx) => VNode
     // 如果是旧版函数：(props, setupState) => VNode
     
-    let subTree: any;
+    let subTree: VNode | null;
     
     // 检查 renderFn 是否是编译后的函数（通过 Function 构造函数创建的）
     if (renderFn.length === 3) {
       // 编译后的函数签名：(h, ctx, normalizeClass)
-      const ctx = { ...props, ...(setupResult || {}) };
-      subTree = renderFn(h, ctx, normalizeClass);
+      const ctx = { ...props, ...(setupResult as object || {}) };
+      subTree = renderFn(h, ctx, normalizeClass) as VNode;
     } else if (renderFn.length === 2) {
       // 旧版编译函数签名：(h, ctx)
-      const ctx = { ...props, ...(setupResult || {}) };
-      subTree = renderFn(h, ctx);
+      const ctx = { ...props, ...(setupResult as object || {}) };
+      subTree = renderFn(h, ctx) as VNode;
     } else {
       // 旧版函数签名：(props, setupState)
-      subTree = renderFn(props, setupResult);
+      subTree = renderFn(props, setupResult) as VNode;
     }
     
     console.log('[renderComponent] render 返回的 subTree:', subTree)
@@ -111,14 +113,15 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
     console.log('[Patch] 检测到对象式组件')
     
     // 使用 renderComponent 处理对象式组件
-    renderComponent(n2.type, n2.props || {}, container)
+    renderComponent(n2.type as Record<string, unknown>, n2.props || {}, container)
     return
   }
   
   // 处理函数式组件
   if (n2 && typeof n2.type === 'function') {
     console.log('[Patch] 检测到函数式组件，调用组件函数...')
-    const subTree = n2.type(n2.props || {})
+    const componentFn = n2.type as (props?: Record<string, unknown>) => VNode
+    const subTree = componentFn(n2.props || {})
     console.log('[Patch] 组件返回的 subTree:', subTree)
     
     if (!n1) {
@@ -217,30 +220,34 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
 /**
  * 设置元素属性 - 与 mount.ts 保持一致
  */
-function setElementProps(el: any, key: string, value: any, prevValue?: any) {
+function setElementProps(el: HTMLElement | SVGElement, key: string, value: unknown, prevValue?: unknown) {
   if (key.startsWith('on')) {
     const event = key.slice(2).toLowerCase();
-    if (prevValue) el.removeEventListener(event, prevValue);
-    if (value) el.addEventListener(event, value);
+    if (prevValue) el.removeEventListener(event, prevValue as EventListener);
+    if (value) el.addEventListener(event, value as EventListener);
   } else if (key === 'class') {
     // 先规范化 class 值（支持字符串、对象、数组）
     const normalizedClass = normalizeClass(value);
-    el.className = normalizedClass;
+    if (el instanceof SVGElement) {
+      el.setAttribute('class', normalizedClass);
+    } else {
+      (el as HTMLElement).className = normalizedClass;
+    }
   } else if (key === 'style') {
     if (value && typeof value === 'object') {
-      Object.assign(el.style, value);
+      Object.assign((el as HTMLElement).style, value);
     } else {
-      el.style.cssText = value;
+      (el as HTMLElement).style.cssText = String(value ?? '');
     }
   } else if (key in el) {
     // 处理 DOM 属性 (如 value, checked 等)
-    el[key] = value;
+    (el as any)[key] = value;
   } else {
     // 处理普通 HTML 属性
     if (value == null || value === false) {
       el.removeAttribute(key);
     } else {
-      el.setAttribute(key, value);
+      el.setAttribute(key, String(value));
     }
   }
 }

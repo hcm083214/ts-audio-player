@@ -5,15 +5,16 @@
 
 import { h } from '../renderer/h'
 import { ref, computed } from '../reactivity/reactive'
+import { Component, VNode } from '../renderer/types'
 
 interface RouteConfig {
   path: string;
-  component: any;
+  component: Component;
 }
 
 interface RouterInstance {
-  install: (app: any) => void;
-  view: any;
+  install: (app: Record<string, unknown>) => void;
+  view: Component;
   push: (path: string) => void;
 }
 
@@ -26,7 +27,7 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
   const currentPath = ref('/');
   
   // 路由匹配
-  const getMatchedComponent = (path: string) => {
+  const getMatchedComponent = (path: string): Component | null => {
     const route = routes.find(r => r.path === path);
     return route ? route.component : null;
   };
@@ -45,9 +46,18 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
   handleUrlChange(); // 初始化
 
   return {
-    install(app: any) {
+    install(app: Record<string, unknown>) {
       // 注入全局属性 $router 和 $route
-      app.config.globalProperties.$router = { 
+      if (!app.config) {
+        app.config = {};
+      }
+      if (!(app.config as Record<string, unknown>).globalProperties) {
+        (app.config as Record<string, unknown>).globalProperties = {};
+      }
+      
+      const globalProps = (app.config as Record<string, unknown>).globalProperties as Record<string, unknown>;
+      
+      globalProps.$router = { 
         push: (p: string) => {
           if (mode === 'hash') {
             window.location.hash = p;
@@ -56,17 +66,20 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
           }
         }
       };
-      app.config.globalProperties.$route = computed(() => ({ path: currentPath.value }));
+      
+      globalProps.$route = computed(() => ({ path: currentPath.value }));
     },
     view: {
       setup() {
         return { currentPath };
       },
-      render(ctx: any) {
-        const component = getMatchedComponent(ctx.currentPath.value);
-        if (!component) return h('div', {}, '404 Not Found');
-        // 动态渲染组件
-        return h(component);
+      render(...args: unknown[]) {
+        const ctx = args[0] as Record<string, unknown>;
+        const currentPathValue = (ctx.currentPath as { value: string })?.value;
+        const component = getMatchedComponent(currentPathValue);
+        if (!component) return h('div', {}, '404 Not Found') as VNode;
+        // 动态渲染组件 - Component 本身可以作为 type 传递给 h
+        return h(component as any, {}, []) as VNode;
       }
     },
     push(path: string) {

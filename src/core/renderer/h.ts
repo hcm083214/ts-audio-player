@@ -5,7 +5,7 @@ import { VNode } from './types'
  * @param staticClass 静态 class 字符串
  * @param dynamicClass 动态 class（可以是字符串、对象或数组）
  */
-function mergeClasses(staticClass: string, dynamicClass: any): string {
+function mergeClasses(staticClass: string, dynamicClass: unknown): string {
   if (!dynamicClass) return staticClass || '';
   
   let dynamicClasses = '';
@@ -17,7 +17,8 @@ function mergeClasses(staticClass: string, dynamicClass: any): string {
     dynamicClasses = dynamicClass.filter(Boolean).join(' ');
   } else if (typeof dynamicClass === 'object') {
     // 对象语法：{ active: true, 'text-danger': false }
-    dynamicClasses = Object.entries(dynamicClass)
+    const obj = dynamicClass as Record<string, unknown>;
+    dynamicClasses = Object.entries(obj)
       .filter(([_, value]) => value)
       .map(([key]) => key)
       .join(' ');
@@ -34,18 +35,25 @@ function mergeClasses(staticClass: string, dynamicClass: any): string {
  * @param props 节点属性
  * @param children 子节点
  */
-export function h(type: any, props: any = {}, children: any = []): VNode | null {
+export function h(type: string | Function, props: Record<string, unknown> = {}, children: VNode[] | string | VNode = []): VNode | null {
   if (type === null) return null;
   
   // 处理 class 合并（如果 props 中有特殊的 __staticClass 标记）
   if (props && props.__staticClass) {
-    const staticClass = props.__staticClass;
+    const staticClass = props.__staticClass as string;
     const dynamicClass = props.class;
     props.class = mergeClasses(staticClass, dynamicClass);
     delete props.__staticClass;
   }
   
-  if (Array.isArray(children)) children = children.flat();
-  if (typeof children === 'string') return { type, props, children, tag: type };
-  return { type, props, children: Array.isArray(children) ? children : [children], tag: type };
+  let normalizedChildren: VNode[] | string;
+  if (Array.isArray(children)) {
+    normalizedChildren = children.flat();
+  } else if (typeof children === 'string') {
+    return { type, props, children, tag: typeof type === 'string' ? type : undefined };
+  } else {
+    normalizedChildren = [children];
+  }
+  
+  return { type, props, children: normalizedChildren, tag: typeof type === 'string' ? type : undefined };
 }

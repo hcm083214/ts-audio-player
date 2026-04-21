@@ -4,7 +4,7 @@ import { VNode } from './types'
  * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
  * 用于规范化 class 值，支持字符串、对象、数组等多种格式
  */
-function normalizeClass(value: any): string {
+function normalizeClass(value: unknown): string {
   if (!value) return '';
   
   if (typeof value === 'string') {
@@ -18,9 +18,10 @@ function normalizeClass(value: any): string {
   
   if (typeof value === 'object') {
     // 对象：{ className: boolean }
+    const obj = value as Record<string, unknown>;
     let result = '';
-    for (const key in value) {
-      if (value[key]) {
+    for (const key in obj) {
+      if (obj[key]) {
         result += (result ? ' ' : '') + key;
       }
     }
@@ -51,28 +52,29 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   if (typeof vnode.type === 'object' && vnode.type !== null) {
     console.log('[Mount] 检测到对象式组件')
     
-    const component = vnode.type as any
+    const component = vnode.type as Record<string, unknown>
     let renderFn: Function
     
     // 如果有 setup 方法，先执行 setup
     if (component.setup) {
       console.log('[Mount] 执行 setup 方法')
-      const setupResult = component.setup(vnode.props || {}, { emit: (event: string, ...args: any[]) => {} })
+      const setupFn = component.setup as (props: Record<string, unknown>, context: { emit: (event: string, ...args: unknown[]) => void }) => unknown
+      const setupResult = setupFn(vnode.props || {}, { emit: (event: string, ...args: unknown[]) => {} })
       console.log('[Mount] setup 返回:', setupResult)
       
       // 如果 setup 返回了 render 函数
       if (typeof setupResult === 'function') {
-        renderFn = setupResult
-      } else if (setupResult && typeof setupResult.render === 'function') {
-        renderFn = setupResult.render
+        renderFn = setupResult as Function
+      } else if (setupResult && typeof setupResult === 'object' && 'render' in setupResult) {
+        renderFn = (setupResult as Record<string, unknown>).render as Function
       } else {
         // 使用组件的 render 方法
-        renderFn = component.render
+        renderFn = component.render as Function
       }
     } else if (component.render) {
       // 直接使用组件的 render 方法
       console.log('[Mount] 使用组件的 render 方法')
-      renderFn = component.render
+      renderFn = component.render as Function
     } else {
       console.warn('[Mount] 组件没有 render 方法')
       return
@@ -80,7 +82,7 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
     
     // 调用 render 函数获取子 VNode
     console.log('[Mount] 调用 render 函数...')
-    const subTree = renderFn(vnode.props || {})
+    const subTree = renderFn(vnode.props || {}) as VNode
     console.log('[Mount] render 返回的 subTree:', subTree)
     
     if (subTree) {
@@ -96,7 +98,8 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   if (typeof vnode.type === 'function') {
     console.log('[Mount] 检测到函数式组件，调用组件函数...')
     // 调用组件函数获取子 VNode
-    const subTree = vnode.type(vnode.props || {})
+    const componentFn = vnode.type as (props?: Record<string, unknown>) => VNode
+    const subTree = componentFn(vnode.props || {})
     console.log('[Mount] 组件返回的 subTree:', subTree)
     
     if (subTree) {
@@ -118,7 +121,7 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       ? document.createElementNS('http://www.w3.org/2000/svg', vnode.type)
       : document.createElement(vnode.type);
     
-    vnode.el = el as any;
+    vnode.el = el as HTMLElement | SVGElement;
     
     // 设置属性
     if (vnode.props) {
@@ -132,7 +135,7 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       if (typeof vnode.children === 'string') {
         el.textContent = vnode.children;
       } else if (Array.isArray(vnode.children)) {
-        vnode.children.forEach((child: any) => {
+        vnode.children.forEach((child: VNode | string) => {
           // 过滤掉 null 和 undefined（来自 v-if 返回的 null）
           if (child === null || child === undefined) {
             return;
@@ -151,9 +154,9 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
     
     // 插入到容器中
     if (anchor) {
-      container.insertBefore(el as any, anchor);
+      container.insertBefore(el as Node, anchor);
     } else {
-      container.appendChild(el as any);
+      container.appendChild(el as Node);
     }
   }
 }
@@ -161,12 +164,12 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
 /**
  * 设置元素属性 - 基于 mVue.ts 实现
  */
-function setElementProps(el: any, key: string, value: any, prevValue?: any) {
+function setElementProps(el: HTMLElement | SVGElement, key: string, value: unknown, prevValue?: unknown) {
   if (key.startsWith('on')) {
     // 事件绑定
     const event = key.slice(2).toLowerCase();
-    if (prevValue) el.removeEventListener(event, prevValue);
-    if (value) el.addEventListener(event, value);
+    if (prevValue) el.removeEventListener(event, prevValue as EventListener);
+    if (value) el.addEventListener(event, value as EventListener);
   } else if (key === 'class') {
     // SVG 元素的 className 是只读的，必须使用 setAttribute
     // 先规范化 class 值（支持字符串、对象、数组）
@@ -175,15 +178,15 @@ function setElementProps(el: any, key: string, value: any, prevValue?: any) {
     if (el instanceof SVGElement) {
       el.setAttribute('class', normalizedClass);
     } else {
-      el.className = normalizedClass;
+      (el as HTMLElement).className = normalizedClass;
     }
   } else if (key === 'style') {
     // style 可能是字符串或对象
     console.log('[setElementProps] 设置 style:', value, '元素类型:', el.tagName);
     if (typeof value === 'string') {
-      el.style.cssText = value;
+      (el as HTMLElement).style.cssText = value;
     } else if (typeof value === 'object') {
-      Object.assign(el.style, value);
+      Object.assign((el as HTMLElement).style, value);
     }
   } else {
     // 清理属性值中可能的多余引号
@@ -193,6 +196,6 @@ function setElementProps(el: any, key: string, value: any, prevValue?: any) {
     }
     // SVG 属性通常区分大小写，但 setAttribute 大部分情况兼容
     console.log('[setElementProps] 设置属性:', key, '=', cleanValue, '元素类型:', el.tagName);
-    el.setAttribute(key, cleanValue);
+    el.setAttribute(key, String(cleanValue ?? ''));
   }
 }

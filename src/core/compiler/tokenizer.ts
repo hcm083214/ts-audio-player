@@ -7,8 +7,8 @@ import { parseProps } from './parser'
 export interface Token {
   type: 'TAG_START' | 'TAG_END' | 'TEXT' | 'INTERPOLATION';
   value: string;
-  props?: any;
-  directives?: any;
+  props?: Record<string, unknown>;
+  directives?: Record<string, string>;
 }
 
 /**

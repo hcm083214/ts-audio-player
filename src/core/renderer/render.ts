@@ -7,7 +7,7 @@ import { patch } from './patch'
  * @param container 容器元素
  */
 export function render(vnode: VNode, container: HTMLElement): void {
-  const prevVNode = (container as any)._vnode;
+  const prevVNode = (container as Record<string, unknown>)._vnode as VNode | undefined;
   patch(prevVNode || null, vnode, container);
-  (container as any)._vnode = vnode;
+  (container as Record<string, unknown>)._vnode = vnode;
 }

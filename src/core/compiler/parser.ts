@@ -5,9 +5,9 @@
 export interface ASTElement {
   type: 'Element';
   tag: string;
-  props: any;
-  directives: any;
-  children: any[];
+  props: Record<string, unknown>;
+  directives: Record<string, string>;
+  children: ASTNode[];
   elseNode?: ASTElement;
   _toRemove?: boolean;
 }
@@ -24,7 +24,7 @@ export interface ASTText {
 
 export interface ASTRoot {
   type: 'Root';
-  children: any[];
+  children: ASTNode[];
 }
 
 export type ASTNode = ASTElement | ASTInterpolation | ASTText | ASTRoot;
@@ -32,9 +32,9 @@ export type ASTNode = ASTElement | ASTInterpolation | ASTText | ASTRoot;
 /**
  * 解析属性字符串
  */
-export function parseProps(attrStr: string) {
-  const props: any = {};
-  const directives: any = {};
+export function parseProps(attrStr: string): { props: Record<string, unknown>; directives: Record<string, string> } {
+  const props: Record<string, unknown> = {};
+  const directives: Record<string, string> = {};
   if (!attrStr) return { props, directives };
 
   // 改进的正则：支持包含引号、花括号、冒号等复杂值的属性
@@ -91,9 +91,9 @@ export function parseProps(attrStr: string) {
 /**
  * 语法分析：将 token 数组转换为 AST
  */
-export function parse(tokens: any[]): ASTRoot {
+export function parse(tokens: Token[]): ASTRoot {
   const root: ASTRoot = { type: 'Root', children: [] };
-  const stack: any[] = [root];
+  const stack: (ASTRoot | ASTElement)[] = [root];
   
   tokens.forEach(token => {
     const parent = stack[stack.length - 1];
@@ -117,3 +117,5 @@ export function parse(tokens: any[]): ASTRoot {
   });
   return root;
 }
+
+import { Token } from './tokenizer'

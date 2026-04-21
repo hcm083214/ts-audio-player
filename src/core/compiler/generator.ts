@@ -2,22 +2,22 @@
  * 代码生成器 - 将 AST 转换为可执行代码
  */
 
-import { ASTElement, ASTRoot } from './parser'
+import { ASTElement, ASTRoot, ASTNode } from './parser'
 
 /**
  * 代码生成：将 AST 转换为可执行代码
  */
 export function generate(ast: ASTRoot): string {
   // 预处理 AST：将 v-else 挂载到 v-if 上
-  function processIfElse(children: any[]) {
+  function processIfElse(children: ASTNode[]) {
     console.log('[AST] processIfElse 开始处理，子节点数量:', children.length);
     
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
-      console.log('[AST] 检查节点', i, ':', child.tag, '指令:', child.directives);
+      console.log('[AST] 检查节点', i, ':', (child as ASTElement).tag, '指令:', (child as ASTElement).directives);
       
-      if (child.directives && 'else' in child.directives) {
-        console.log('[AST] ✓ 找到 v-else 节点:', child.tag, '索引:', i);
+      if ((child as ASTElement).directives && 'else' in (child as ASTElement).directives) {
+        console.log('[AST] ✓ 找到 v-else 节点:', (child as ASTElement).tag, '索引:', i);
         
         // 找到前一个有 v-if 指令的节点
         let prevIndex = i - 1;
@@ -25,7 +25,7 @@ export function generate(ast: ASTRoot): string {
         
         // 向前查找，跳过所有非 v-if 节点
         while(prevIndex >= 0) {
-          const prevNode = children[prevIndex];
+          const prevNode = children[prevIndex] as ASTElement;
           console.log('[AST] 检查索引', prevIndex, ':', prevNode?.tag, '指令:', prevNode?.directives);
           
           // 如果找到 v-if 节点，停止
@@ -38,28 +38,28 @@ export function generate(ast: ASTRoot): string {
           prevIndex--;
         }
         
-        if (prevIndex >= 0 && children[prevIndex].directives && children[prevIndex].directives.if) {
+        if (prevIndex >= 0 && (children[prevIndex] as ASTElement).directives && (children[prevIndex] as ASTElement).directives.if) {
           // 将 else 逻辑附加到前一个节点
-          children[prevIndex].elseNode = child;
+          (children[prevIndex] as ASTElement).elseNode = child as ASTElement;
           // 标记当前节点稍后删除
-          child._toRemove = true;
-          console.log('[AST] ✓ v-else 已挂载到节点:', children[prevIndex].tag);
+          (child as ASTElement)._toRemove = true;
+          console.log('[AST] ✓ v-else 已挂载到节点:', (children[prevIndex] as ASTElement).tag);
         } else {
           console.warn('[AST] ✗ v-else 没有找到匹配的 v-if 节点，prevIndex:', prevIndex);
         }
       } else {
         console.log('[AST] 节点', i, '不是 v-else，跳过');
       }
-      if (child.children && child.children.length > 0) {
-        console.log('[AST] 递归处理子节点:', child.tag);
-        processIfElse(child.children);
+      if ((child as ASTElement).children && (child as ASTElement).children.length > 0) {
+        console.log('[AST] 递归处理子节点:', (child as ASTElement).tag);
+        processIfElse((child as ASTElement).children);
       }
     }
     // 移除标记的节点
     console.log('[AST] 移除前子节点数量:', children.length);
     for (let i = children.length - 1; i >= 0; i--) {
-      if (children[i]._toRemove) {
-        console.log('[AST] 移除 v-else 节点:', children[i].tag);
+      if ((children[i] as ASTElement)._toRemove) {
+        console.log('[AST] 移除 v-else 节点:', (children[i] as ASTElement).tag);
         children.splice(i, 1);
       }
     }
@@ -70,7 +70,7 @@ export function generate(ast: ASTRoot): string {
   processIfElse(ast.children);
   console.log('[AST] AST 处理完成，根节点子节点数量:', ast.children.length);
 
-  function genNode(node: any): string {
+  function genNode(node: ASTNode): string {
     if (node.type === 'Root') {
       return `h('div', {}, [${node.children.map(genNode).join(',')}])`;
     } 
@@ -224,14 +224,14 @@ export function generate(ast: ASTRoot): string {
         // 判断是表达式还是函数引用
         // 如果是函数名（如 increment），直接使用 ctx.xxx
         // 如果是表达式（如 count++），需要将变量替换为 ctx.xxx.value
-        const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(val.trim());
+        const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(String(val).trim());
         
         if (isSimpleIdentifier) {
           // 函数引用：increment -> ctx.increment
           propsEntries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
         } else {
           // 表达式：count++ -> ctx.count.value++
-          const handlerCode = val.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+          const handlerCode = String(val).replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
             // 跳过 JavaScript 关键字和特殊变量
             if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
               return varName;
@@ -259,19 +259,19 @@ export function generate(ast: ASTRoot): string {
       // 添加动态 :class - 保持表达式原样，只替换变量
       if (dynamicClassExpr) {
         // 检查是否是对象或数组字面量
-        const trimmedExpr = dynamicClassExpr.trim();
+        const trimmedExpr = String(dynamicClassExpr).trim();
         const isObjectOrArrayLiteral = trimmedExpr.startsWith('{') || trimmedExpr.startsWith('[');
         
         if (isObjectOrArrayLiteral) {
           // 对象/数组字面量：智能替换其中的变量
-          const processedExpr = smartReplaceVariables(dynamicClassExpr);
+          const processedExpr = smartReplaceVariables(String(dynamicClassExpr));
           
           console.log('[Generate] :class 复杂表达式:', dynamicClassExpr, '->', processedExpr);
           
           classCodeParts.push(processedExpr);
         } else {
           // 其他表达式（包括简单变量、三元表达式等）：使用 smartReplaceVariables 统一处理
-          const processedExpr = smartReplaceVariables(dynamicClassExpr);
+          const processedExpr = smartReplaceVariables(String(dynamicClassExpr));
           
           console.log('[Generate] :class 表达式:', dynamicClassExpr, '->', processedExpr);
           
@@ -316,8 +316,8 @@ export function generate(ast: ASTRoot): string {
         console.log('[Generate] v-for 生成的 map 参数:', mapParams);
         
         // 生成带作用域的子节点代码
-        const generateScopedChildren = (children: any[]): string => {
-          return children.map((child: any) => {
+        const generateScopedChildren = (children: ASTNode[]): string => {
+          return children.map((child: ASTNode) => {
             if (child.type === 'Interpolation') {
               // 检查插值表达式是否引用了循环变量
               const content = child.content;
@@ -394,7 +394,7 @@ export function generate(ast: ASTRoot): string {
       
       if (node.elseNode) {
         // 生成 else 节点的代码 - 需要完整处理属性绑定
-        const elseProps: any = { ...node.elseNode.props };
+        const elseProps: Record<string, unknown> = { ...node.elseNode.props };
         
         // 处理 else 节点的属性绑定（与主节点相同的逻辑）
         const elsePropsEntries: string[] = [];
@@ -406,12 +406,12 @@ export function generate(ast: ASTRoot): string {
           } else if (key.startsWith('@')) {
             // 事件绑定
             const eventName = 'on' + key.slice(1);
-            const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(val.trim());
+            const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(String(val).trim());
             
             if (isSimpleIdentifier) {
               elsePropsEntries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
             } else {
-              const handlerCode = val.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+              const handlerCode = String(val).replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
                 if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
                   return varName;
                 }

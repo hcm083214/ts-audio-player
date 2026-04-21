@@ -1,6 +1,9 @@
 // 响应式系统 (Reactivity) - 基于 mVue.ts 实现
-const isObject = (val: any) => val !== null && typeof val === 'object';
-const targetMap = new WeakMap<any, Map<any, Set<ReactiveEffect>>>();
+const isObject = (val: unknown): val is object => val !== null && typeof val === 'object';
+type TrackTarget = object;
+type TrackKey = string | symbol;
+
+const targetMap = new WeakMap<TrackTarget, Map<TrackKey, Set<ReactiveEffect>>>();
 let activeEffect: ReactiveEffect | undefined;
 let shouldTrack = false;
 
@@ -32,7 +35,7 @@ class ReactiveEffect {
   }
 }
 
-function track(target: any, key: any) {
+function track(target: TrackTarget, key: TrackKey) {
   if (!shouldTrack || !activeEffect) return;
   
   let depsMap = targetMap.get(target);
@@ -51,7 +54,7 @@ function track(target: any, key: any) {
   }
 }
 
-function trigger(target: any, key: any) {
+function trigger(target: TrackTarget, key: TrackKey) {
   const depsMap = targetMap.get(target);
   if (!depsMap) return;
   
@@ -67,31 +70,39 @@ function trigger(target: any, key: any) {
 function reactive<T extends object>(obj: T): T {
   return new Proxy(obj, {
     get(target, key, receiver) {
-      track(target, key);
+      track(target, key as TrackKey);
       const res = Reflect.get(target, key, receiver);
-      return isObject(res) ? reactive(res as any) : res;
+      return isObject(res) ? reactive(res) : res;
     },
     set(target, key, value, receiver) {
       const res = Reflect.set(target, key, value, receiver);
-      trigger(target, key);
+      trigger(target, key as TrackKey);
       return res;
     }
   });
 }
 
 // 创建 Ref
-function ref<T>(val: T) {
-  return reactive({ value: val });
+interface Ref<T> {
+  value: T;
+}
+
+function ref<T>(val: T): Ref<T> {
+  return reactive({ value: val }) as Ref<T>;
 }
 
 // 创建 Computed
-function computed<T>(getter: () => T) {
-  const res = ref<T>(undefined as any);
+interface ComputedRef<T> {
+  value: T;
+}
+
+function computed<T>(getter: () => T): ComputedRef<T> {
+  const res = ref<T>(undefined as unknown as T);
   const effect = new ReactiveEffect(() => {
     res.value = getter();
   });
   effect.effect();
-  return res;
+  return res as ComputedRef<T>;
 }
 
 // 执行副作用函数 (Watch Effect)

@@ -7,7 +7,7 @@
  * normalizeClass 辅助函数
  * 用于规范化 class 值，支持字符串、对象、数组等多种格式
  */
-export function normalizeClass(value: any): string {
+export function normalizeClass(value: unknown): string {
   if (!value) return '';
   
   if (typeof value === 'string') {
@@ -21,9 +21,10 @@ export function normalizeClass(value: any): string {
   
   if (typeof value === 'object') {
     // 对象：{ className: boolean }
+    const obj = value as Record<string, unknown>;
     let result = '';
-    for (const key in value) {
-      if (value[key]) {
+    for (const key in obj) {
+      if (obj[key]) {
         result += (result ? ' ' : '') + key;
       }
     }
