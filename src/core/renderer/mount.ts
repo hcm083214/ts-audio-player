@@ -1,6 +1,7 @@
 import { VNode, Component, VNodeProps } from './types'
 import { h } from './h'
 import { normalizeClass } from '../compiler/normalizeClass'
+import { ReactiveEffect } from '../reactivity/reactive'
 
 /**
  * 挂载虚拟 DOM 到真实 DOM - 基于 mVue.ts 实现，支持 SVG
@@ -43,43 +44,52 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       return
     }
     
-    // 构建上下文：合并 props 和 setup 返回值
-    const ctx = { ...vnode.props, ...(setupResult || {}) }
-    
-    // 调用 render 函数获取子 VNode
-    // 检测 render 函数的参数数量，适配不同签名
-    let subTree: VNode | VNode[] | null
-    try {
-      if (renderFn.length === 3) {
-        // 编译后的函数签名：(h, ctx, normalizeClass)
-        subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[]
-      } else if (renderFn.length === 2) {
-        // 旧版编译函数签名：(h, ctx)
-        subTree = renderFn(h, ctx) as VNode | VNode[]
-      } else {
-        // 旧版函数签名：(props, setupState)
-        subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
+    // 🔥 关键修复：使用 effect 包裹 render 函数，实现响应式更新
+    const effectFn = new ReactiveEffect(() => {
+      // 构建上下文：合并 props 和 setup 返回值
+      const ctx = { ...vnode.props, ...(setupResult || {}) }
+      
+      // 调用 render 函数获取子 VNode
+      // 检测 render 函数的参数数量，适配不同签名
+      let subTree: VNode | VNode[] | null
+      try {
+        if (renderFn.length === 3) {
+          // 编译后的函数签名：(h, ctx, normalizeClass)
+          subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[]
+        } else if (renderFn.length === 2) {
+          // 旧版编译函数签名：(h, ctx)
+          subTree = renderFn(h, ctx) as VNode | VNode[]
+        } else {
+          // 旧版函数签名：(props, setupState)
+          subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
+        }
+      } catch (error) {
+        console.error('[Mount] render 函数执行出错:', error);
+        return;
       }
-    } catch (error) {
-      console.error('[Mount] render 函数执行出错:', error);
-      return;
-    }
-    
-    if (subTree) {
-      // 如果 subTree 是数组，遍历挂载每个元素
-      if (Array.isArray(subTree)) {
-        subTree.forEach((child) => {
-          if (child) {
-            mount(child, container, anchor)
-          }
-        })
+      
+      if (subTree) {
+        // 清空容器
+        container.innerHTML = ''
+        
+        // 如果 subTree 是数组，遍历挂载每个元素
+        if (Array.isArray(subTree)) {
+          subTree.forEach((child) => {
+            if (child) {
+              mount(child, container, anchor)
+            }
+          })
+        } else {
+          // 单个 VNode，直接挂载
+          mount(subTree, container, anchor)
+        }
       } else {
-        // 单个 VNode，直接挂载
-        mount(subTree, container, anchor)
+        console.warn('[Mount] render 返回了 null subTree')
       }
-    } else {
-      console.warn('[Mount] render 返回了 null subTree')
-    }
+    })
+    
+    // 执行 effect，触发首次渲染
+    effectFn.effect()
     return
   }
 

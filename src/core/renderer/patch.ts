@@ -61,6 +61,8 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
   
   // 使用 effect 包裹 render 函数
   const effectFn = new ReactiveEffect(() => {
+    console.log('🔄 [renderComponent] Effect 执行，准备渲染组件')
+    
     // 判断 renderFn 的签名类型
     // 如果是编译后的函数：(h, ctx) => VNode
     // 如果是旧版函数：(props, setupState) => VNode
@@ -71,6 +73,11 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
     if (renderFn.length === 3) {
       // 编译后的函数签名：(h, ctx, normalizeClass)
       const ctx = { ...props, ...(setupResult as object || {}) };
+      console.log('🔍 [renderComponent] ctx 对象:', ctx);
+      console.log('🔍 [renderComponent] ctx.count:', ctx.count);
+      console.log('🔍 [renderComponent] ctx.count.value:', ctx.count?.value);
+      console.log('🔍 [renderComponent] setupResult.count:', (setupResult as any)?.count);
+      console.log('🔍 [renderComponent] 两者是否相同?', ctx.count === (setupResult as any)?.count);
       subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[];
     } else if (renderFn.length === 2) {
       // 旧版编译函数签名：(h, ctx)
@@ -99,6 +106,7 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
     }
   })
   
+  console.log('✅ [renderComponent] Effect 创建完成')
   // 执行 effect，触发首次渲染
   effectFn.effect()
 }

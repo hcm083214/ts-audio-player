@@ -11,11 +11,15 @@ const TestPage = {
     components: { MComponent },
     setup() {
         const count = ref(0)
+        
         const increment = () => {
+            console.log('📌 点击前 count.value:', count.value)
             count.value++
+            console.log("🚀 ~ increment ~ count.value:", count.value)
         }
         const decrease = () => {
             count.value--
+            console.log("🚀 ~ decrease ~ count.value:", count.value)
         }
         const arr = [1, 2, 3]
         const isDisplay = ref(false)
@@ -40,6 +44,10 @@ const TestPage = {
             'text-danger': hasError.value 
         }))
         const msg = ref('Hello from TestPage!')
+        
+        // 添加调试日志
+        console.log('🔍 setup 返回的 count:', count)
+        console.log('🔍 count 是 Ref 对象吗?', 'value' in count)
         
         return { count, increment, decrease, arr, isDisplay, author, publishedBooksMessage, isActive, hasError, classObject, msg, MComponent }
     },
