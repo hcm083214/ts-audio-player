@@ -1,15 +1,21 @@
 import { compileComponent, ref, reactive, computed } from '../core'
 
+// 编译子组件
+const MComponent = compileComponent({ 
+  template: '<div>{{ msg }}</div>', 
+  props: ['msg'] 
+})
+
 const TestPage = {
+    // 注册子组件（供编译器使用）
+    components: { MComponent },
     setup() {
         const count = ref(0)
         const increment = () => {
             count.value++
-            console.log("🚀 ~ increment ~ count.value:", count.value)
         }
         const decrease = () => {
             count.value--
-            console.log("🚀 ~ decrease ~ count.value:", count.value)
         }
         const arr = [1, 2, 3]
         const isDisplay = ref(false)
@@ -27,16 +33,19 @@ const TestPage = {
             return author.books.length > 4 ? 'Yes' : 'No'
         })
 
-        const isActive = ref(true)  // 改为 true 以便测试 class 绑定
+        const isActive = ref(true)
         const hasError = ref(true)
         const classObject = computed(() => ({
             active: isActive.value && hasError.value,
             'text-danger': hasError.value 
         }))
-        return { count, increment, decrease, arr, isDisplay, author, publishedBooksMessage, isActive, hasError,classObject } // setup 必须返回一个对象
+        const msg = ref('Hello from TestPage!')
+        
+        return { count, increment, decrease, arr, isDisplay, author, publishedBooksMessage, isActive, hasError, classObject, msg, MComponent }
     },
     template: `
         <div class="p-4">
+            <m-component :msg="msg"></m-component>
             <div
                 class="static"
                 :class="{ active: isActive, 'text-danger': hasError }"

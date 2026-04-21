@@ -65,26 +65,37 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
     // 如果是编译后的函数：(h, ctx) => VNode
     // 如果是旧版函数：(props, setupState) => VNode
     
-    let subTree: VNode | null;
+    let subTree: VNode | VNode[] | null;
     
     // 检查 renderFn 是否是编译后的函数（通过 Function 构造函数创建的）
     if (renderFn.length === 3) {
       // 编译后的函数签名：(h, ctx, normalizeClass)
       const ctx = { ...props, ...(setupResult as object || {}) };
-      subTree = renderFn(h, ctx, normalizeClass) as VNode;
+      subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[];
     } else if (renderFn.length === 2) {
       // 旧版编译函数签名：(h, ctx)
       const ctx = { ...props, ...(setupResult as object || {}) };
-      subTree = renderFn(h, ctx) as VNode;
+      subTree = renderFn(h, ctx) as VNode | VNode[];
     } else {
       // 旧版函数签名：(props, setupState)
-      subTree = renderFn(props, setupResult) as VNode;
+      subTree = renderFn(props, setupResult) as VNode | VNode[];
     }
     
     if (subTree) {
       // 清空容器并重新挂载
       container.innerHTML = ''
-      mount(subTree, container)
+      
+      // 如果 subTree 是数组，遍历挂载每个元素
+      if (Array.isArray(subTree)) {
+        subTree.forEach(child => {
+          if (child) {
+            mount(child, container)
+          }
+        })
+      } else {
+        // 单个 VNode，直接挂载
+        mount(subTree, container)
+      }
     }
   })
   

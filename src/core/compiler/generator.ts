@@ -53,7 +53,12 @@ export function generate(ast: ASTRoot): string {
 
   function genNode(node: ASTNode): string {
     if (node.type === 'Root') {
-      return `h('div', {}, [${node.children.map(genNode).join(',')}])`;
+      // 如果只有一个子节点，直接返回该节点的代码
+      if (node.children.length === 1) {
+        return genNode(node.children[0]);
+      }
+      // 如果有多个子节点，用数组包裹
+      return `[${node.children.map(genNode).join(',')}]`;
     } 
     else if (node.type === 'Element') {
       return genElementContent(node);
@@ -164,6 +169,9 @@ export function generate(ast: ASTRoot): string {
     let dynamicClassExpr = props[':class'];
     delete props[':class']; // 从 props 中移除，稍后处理
 
+    // 判断是否为自定义组件（标签名包含连字符）
+    const isCustomComponent = node.tag.includes('-');
+
     // 属性绑定处理
     const propsEntries: string[] = [];
     
@@ -171,8 +179,14 @@ export function generate(ast: ASTRoot): string {
     for (const key in props) {
       const val = props[key];
       if (key.startsWith(':')) {
-        // 动态绑定：直接使用 ctx.xxx（不加引号）
-        propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
+        // 动态绑定
+        if (isCustomComponent) {
+          // 自定义组件：需要访问 .value 以解包 Ref
+          propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}?.value ?? ctx.${val}`);
+        } else {
+          // 普通 HTML 元素：直接使用 ctx.xxx
+          propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
+        }
       } else if (key.startsWith('@')) {
         // 事件绑定：转换为 onClick 格式（大驼峰）
         const rawEventName = key.slice(1); // click, page-change, etc.
@@ -248,7 +262,22 @@ export function generate(ast: ASTRoot): string {
     
     const propsStr = `{${propsEntries.join(', ')}}`;
     const childrenStr = node.children.length ? `[${node.children.map(genNode).join(',')}]` : '[]';
-    const hCode = `h('${node.tag}', ${propsStr}, ${childrenStr})`;
+    
+    let hCode: string;
+    
+    if (isCustomComponent) {
+      // 自定义组件：从 ctx 中获取组件对象
+      // 将 kebab-case 转换为 camelCase，例如 m-component -> MComponent
+      const componentName = node.tag
+        .split('-')
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join('');
+      
+      hCode = `h(ctx.${componentName}, ${propsStr}, ${childrenStr})`;
+    } else {
+      // 普通 HTML 元素
+      hCode = `h('${node.tag}', ${propsStr}, ${childrenStr})`;
+    }
 
     // 处理 v-for 逻辑
     let code = hCode;

@@ -1,35 +1,6 @@
 import { VNode, Component, VNodeProps } from './types'
-
-/**
- * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
- * 用于规范化 class 值，支持字符串、对象、数组等多种格式
- */
-function normalizeClass(value: any): string {
-  if (!value) return '';
-  
-  if (typeof value === 'string') {
-    return value;
-  }
-  
-  if (Array.isArray(value)) {
-    // 数组：递归处理每个元素，然后合并
-    return value.map(item => normalizeClass(item)).filter(Boolean).join(' ');
-  }
-  
-  if (typeof value === 'object') {
-    // 对象：{ className: boolean }
-    const obj = value as Record<string, any>;
-    let result = '';
-    for (const key in obj) {
-      if (obj[key]) {
-        result += (result ? ' ' : '') + key;
-      }
-    }
-    return result;
-  }
-  
-  return String(value);
-}
+import { h } from './h'
+import { normalizeClass } from '../compiler/normalizeClass'
 
 /**
  * 挂载虚拟 DOM 到真实 DOM - 基于 mVue.ts 实现，支持 SVG
@@ -46,12 +17,14 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   // 处理对象式组件（Options API）
   if (typeof vnode.type === 'object' && vnode.type !== null) {
     const component = vnode.type as Component
+    
     let renderFn: Function
     
     // 如果有 setup 方法，先执行 setup
+    let setupResult: any
     if (component.setup) {
       const setupFn = component.setup
-      const setupResult = setupFn(vnode.props || {}, { emit: (event: string, ...args: any[]) => {} })
+      setupResult = setupFn(vnode.props || {}, { emit: (event: string, ...args: any[]) => {} })
       
       // 如果 setup 返回了 render 函数
       if (typeof setupResult === 'function') {
@@ -70,11 +43,40 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       return
     }
     
+    // 构建上下文：合并 props 和 setup 返回值
+    const ctx = { ...vnode.props, ...(setupResult || {}) }
+    
     // 调用 render 函数获取子 VNode
-    const subTree = renderFn(vnode.props || {}) as VNode
+    // 检测 render 函数的参数数量，适配不同签名
+    let subTree: VNode | VNode[] | null
+    try {
+      if (renderFn.length === 3) {
+        // 编译后的函数签名：(h, ctx, normalizeClass)
+        subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[]
+      } else if (renderFn.length === 2) {
+        // 旧版编译函数签名：(h, ctx)
+        subTree = renderFn(h, ctx) as VNode | VNode[]
+      } else {
+        // 旧版函数签名：(props, setupState)
+        subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
+      }
+    } catch (error) {
+      console.error('[Mount] render 函数执行出错:', error);
+      return;
+    }
     
     if (subTree) {
-      mount(subTree, container, anchor)
+      // 如果 subTree 是数组，遍历挂载每个元素
+      if (Array.isArray(subTree)) {
+        subTree.forEach((child) => {
+          if (child) {
+            mount(child, container, anchor)
+          }
+        })
+      } else {
+        // 单个 VNode，直接挂载
+        mount(subTree, container, anchor)
+      }
     } else {
       console.warn('[Mount] render 返回了 null subTree')
     }
@@ -84,11 +86,19 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   // 处理函数式组件
   if (typeof vnode.type === 'function') {
     // 调用组件函数获取子 VNode
-    const componentFn = vnode.type as (props?: VNodeProps) => VNode
+    const componentFn = vnode.type as (props?: VNodeProps) => VNode | VNode[]
     const subTree = componentFn(vnode.props || {})
     
     if (subTree) {
-      mount(subTree, container, anchor)
+      if (Array.isArray(subTree)) {
+        subTree.forEach((child) => {
+          if (child) {
+            mount(child, container, anchor)
+          }
+        })
+      } else {
+        mount(subTree, container, anchor)
+      }
     } else {
       console.warn('[Mount] 组件返回了 null subTree')
     }

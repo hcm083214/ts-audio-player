@@ -21,8 +21,8 @@ export function tokenize(template: string): Token[] {
     const char = template[i];
     if (char === '<') {
       if (template[i + 1] === '/') {
-        // 使用捕获组准确提取结束标签名
-        const match = template.slice(i).match(/^<\/(\w+)>/);
+        // 使用捕获组准确提取结束标签名，支持连字符
+        const match = template.slice(i).match(/^<\/([a-zA-Z][\w-]*)>/);
         if (match) {
           tokens.push({ type: 'TAG_END', value: match[1] });
           i += match[0].length;
@@ -33,7 +33,8 @@ export function tokenize(template: string): Token[] {
         }
       } else {
         // 使用 [\s\S] 替代 . 以匹配包括换行符在内的所有字符
-        const match = template.slice(i).match(/^<(\w+)([\s\S]*?)>/);
+        // 标签名支持字母、数字、下划线和连字符（用于自定义组件如 m-component）
+        const match = template.slice(i).match(/^<([a-zA-Z][\w-]*)([\s\S]*?)>/);
         if (match) {
           const tagName = match[1]; // 直接从捕获组获取标签名
           const attrsStr = match[2] || ''; // 属性字符串（可能为空，包含换行符）
