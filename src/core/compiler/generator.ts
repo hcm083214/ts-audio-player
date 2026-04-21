@@ -394,7 +394,7 @@ export function generate(ast: ASTRoot): string {
       
       if (node.elseNode) {
         // 生成 else 节点的代码 - 需要完整处理属性绑定
-        const elseProps: Record<string, unknown> = { ...node.elseNode.props };
+        const elseProps: Record<string, string | number | boolean | null | undefined> = { ...node.elseNode.props };
         
         // 处理 else 节点的属性绑定（与主节点相同的逻辑）
         const elsePropsEntries: string[] = [];

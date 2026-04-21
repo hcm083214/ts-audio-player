@@ -1,11 +1,11 @@
-import { VNode } from './types'
+import { VNode, Component, VNodeProps } from './types'
 
 /**
  * 合并静态 class 和动态 class
  * @param staticClass 静态 class 字符串
  * @param dynamicClass 动态 class（可以是字符串、对象或数组）
  */
-function mergeClasses(staticClass: string, dynamicClass: unknown): string {
+function mergeClasses(staticClass: string, dynamicClass: any): string {
   if (!dynamicClass) return staticClass || '';
   
   let dynamicClasses = '';
@@ -17,7 +17,7 @@ function mergeClasses(staticClass: string, dynamicClass: unknown): string {
     dynamicClasses = dynamicClass.filter(Boolean).join(' ');
   } else if (typeof dynamicClass === 'object') {
     // 对象语法：{ active: true, 'text-danger': false }
-    const obj = dynamicClass as Record<string, unknown>;
+    const obj = dynamicClass as Record<string, any>;
     dynamicClasses = Object.entries(obj)
       .filter(([_, value]) => value)
       .map(([key]) => key)
@@ -31,11 +31,11 @@ function mergeClasses(staticClass: string, dynamicClass: unknown): string {
 
 /**
  * 创建虚拟 DOM 节点 - 基于 mVue.ts 实现
- * @param type 节点类型（字符串标签名或组件函数）
+ * @param type 节点类型（字符串标签名、组件函数或组件对象）
  * @param props 节点属性
  * @param children 子节点
  */
-export function h(type: string | Function, props: Record<string, unknown> = {}, children: VNode[] | string | VNode = []): VNode | null {
+export function h(type: string | Function | Component, props: VNodeProps = {}, children: VNode[] | string | VNode = []): VNode | null {
   if (type === null) return null;
   
   // 处理 class 合并（如果 props 中有特殊的 __staticClass 标记）

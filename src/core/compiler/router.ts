@@ -3,7 +3,7 @@
  * 支持 Hash 和 History 模式
  */
 
-import { h } from '../renderer/h'
+import { h as hFn } from '../renderer/h'
 import { ref, computed } from '../reactivity/reactive'
 import { Component, VNode } from '../renderer/types'
 
@@ -12,8 +12,17 @@ interface RouteConfig {
   component: Component;
 }
 
+// 应用实例类型
+export interface AppInstance {
+  config?: {
+    globalProperties?: Record<string, any>;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
 interface RouterInstance {
-  install: (app: Record<string, unknown>) => void;
+  install: (app: AppInstance) => void;
   view: Component;
   push: (path: string) => void;
 }
@@ -46,16 +55,16 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
   handleUrlChange(); // 初始化
 
   return {
-    install(app: Record<string, unknown>) {
+    install(app: AppInstance) {
       // 注入全局属性 $router 和 $route
       if (!app.config) {
         app.config = {};
       }
-      if (!(app.config as Record<string, unknown>).globalProperties) {
-        (app.config as Record<string, unknown>).globalProperties = {};
+      if (!app.config.globalProperties) {
+        app.config.globalProperties = {};
       }
       
-      const globalProps = (app.config as Record<string, unknown>).globalProperties as Record<string, unknown>;
+      const globalProps = app.config.globalProperties;
       
       globalProps.$router = { 
         push: (p: string) => {
@@ -73,13 +82,12 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
       setup() {
         return { currentPath };
       },
-      render(...args: unknown[]) {
-        const ctx = args[0] as Record<string, unknown>;
+      render(h: typeof hFn, ctx: Record<string, any>, normalizeClass: Function) {
         const currentPathValue = (ctx.currentPath as { value: string })?.value;
         const component = getMatchedComponent(currentPathValue);
-        if (!component) return h('div', {}, '404 Not Found') as VNode;
+        if (!component) return hFn('div', {}, '404 Not Found') as VNode;
         // 动态渲染组件 - Component 本身可以作为 type 传递给 h
-        return h(component as any, {}, []) as VNode;
+        return hFn(component, {}, []) as VNode;
       }
     },
     push(path: string) {

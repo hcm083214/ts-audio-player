@@ -2,28 +2,43 @@
  * 编译器主入口 - 基于 mVue.ts 实现，支持 v-else
  */
 
-import { h } from '../renderer/h'
+import { h as hFn } from '../renderer/h'
 import { tokenize } from './tokenizer'
 import { parse } from './parser'
 import { generate } from './generator'
-import { normalizeClass } from './normalizeClass'
+import { normalizeClass as normalizeClassFn } from './normalizeClass'
+
+// 编译后的渲染函数类型
+export type CompiledRenderFn = (h: typeof hFn, ctx: Record<string, any>, normalizeClass: typeof normalizeClassFn) => any;
 
 /**
  * 编译模板字符串为渲染函数
  */
-export function compile(template: string): (h: Function, ctx: Record<string, unknown>, normalizeClass: Function) => unknown {
+export function compile(template: string): CompiledRenderFn {
   const tokens = tokenize(template);
   const ast = parse(tokens);
   const code = generate(ast);
   console.log('[Compile] 生成的代码:', code);
   // 将 normalizeClass 作为第三个参数传递
-  return new Function('h', 'ctx', 'normalizeClass', `return ${code}`) as (h: Function, ctx: Record<string, unknown>, normalizeClass: Function) => unknown;
+  return new Function('h', 'ctx', 'normalizeClass', `return ${code}`) as CompiledRenderFn;
+}
+
+/**
+ * 组件类型定义
+ */
+export interface ComponentOptions {
+  setup?: (props: Record<string, any>, context: { emit: (event: string, ...args: any[]) => void }) => any;
+  render?: CompiledRenderFn;
+  template?: string;
+  props?: string[];
+  emits?: string[];
+  [key: string]: any;
 }
 
 /**
  * 编译组件 - 将 template 转换为 render 函数
  */
-export function compileComponent(component: Record<string, unknown>): Record<string, unknown> {
+export function compileComponent(component: ComponentOptions): ComponentOptions {
   if (!component.template) {
     return component;
   }
@@ -40,11 +55,11 @@ export function compileComponent(component: Record<string, unknown>): Record<str
 /**
  * 运行时模板编译器 - 兼容旧接口
  */
-export function createRuntimeCompiler(template: string, components?: Record<string, unknown>): (props: Record<string, unknown>, setupState?: Record<string, unknown>) => unknown {
+export function createRuntimeCompiler(template: string, components?: Record<string, any>): (props: Record<string, any>, setupState?: Record<string, any>) => any {
   const renderFn = compile(template);
-  return function(props: Record<string, unknown>, setupState?: Record<string, unknown>) {
+  return function(props: Record<string, any>, setupState?: Record<string, any>) {
     const ctx = { ...props, ...(setupState || {}) };
-    return renderFn(h, ctx, normalizeClass);
+    return renderFn(hFn, ctx, normalizeClassFn);
   };
 }
 

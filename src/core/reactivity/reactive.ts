@@ -1,5 +1,5 @@
 // 响应式系统 (Reactivity) - 基于 mVue.ts 实现
-const isObject = (val: unknown): val is object => val !== null && typeof val === 'object';
+const isObject = (val: any): val is object => val !== null && typeof val === 'object';
 type TrackTarget = object;
 type TrackKey = string | symbol;
 
@@ -97,7 +97,7 @@ interface ComputedRef<T> {
 }
 
 function computed<T>(getter: () => T): ComputedRef<T> {
-  const res = ref<T>(undefined as unknown as T);
+  const res = ref<T>(undefined as any as T);
   const effect = new ReactiveEffect(() => {
     res.value = getter();
   });

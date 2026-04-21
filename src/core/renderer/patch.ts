@@ -1,4 +1,4 @@
-import { VNode, ComponentInstance } from './types'
+import { VNode, ComponentInstance, Component, VNodeProps } from './types'
 import { mount } from './mount'
 import { h } from './h'
 import { ReactiveEffect } from '../reactivity/reactive'
@@ -7,7 +7,7 @@ import { ReactiveEffect } from '../reactivity/reactive'
  * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
  * 用于规范化 class 值，支持字符串、对象、数组等多种格式
  */
-function normalizeClass(value: unknown): string {
+function normalizeClass(value: any): string {
   if (!value) return '';
   
   if (typeof value === 'string') {
@@ -21,7 +21,7 @@ function normalizeClass(value: unknown): string {
   
   if (typeof value === 'object') {
     // 对象：{ className: boolean }
-    const obj = value as Record<string, unknown>;
+    const obj = value as Record<string, any>;
     let result = '';
     for (const key in obj) {
       if (obj[key]) {
@@ -37,20 +37,20 @@ function normalizeClass(value: unknown): string {
 /**
  * 渲染组件 - 使用 effect 包裹 render 函数实现响应式更新
  */
-function renderComponent(component: Record<string, unknown>, props: Record<string, unknown>, container: HTMLElement, effectInstance?: ReactiveEffect): void {
+function renderComponent(component: Component, props: VNodeProps, container: HTMLElement, effectInstance?: ReactiveEffect): void {
   let renderFn: Function
-  let setupResult: unknown
+  let setupResult: any
   
   if (component.setup) {
     console.log('[renderComponent] 执行 setup 方法')
-    const setupFn = component.setup as (props: Record<string, unknown>, context: { emit: (event: string, ...args: unknown[]) => void }) => unknown
-    setupResult = setupFn(props, { emit: (event: string, ...args: unknown[]) => {} })
+    const setupFn = component.setup
+    setupResult = setupFn(props, { emit: (event: string, ...args: any[]) => {} })
     console.log('[renderComponent] setup 返回:', setupResult)
     
     if (typeof setupResult === 'function') {
       renderFn = setupResult as Function
     } else if (setupResult && typeof setupResult === 'object' && 'render' in setupResult) {
-      renderFn = (setupResult as Record<string, unknown>).render as Function
+      renderFn = (setupResult as Record<string, any>).render as Function
     } else {
       renderFn = component.render as Function
     }
@@ -113,14 +113,14 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
     console.log('[Patch] 检测到对象式组件')
     
     // 使用 renderComponent 处理对象式组件
-    renderComponent(n2.type as Record<string, unknown>, n2.props || {}, container)
+    renderComponent(n2.type as Component, n2.props || {}, container)
     return
   }
   
   // 处理函数式组件
   if (n2 && typeof n2.type === 'function') {
     console.log('[Patch] 检测到函数式组件，调用组件函数...')
-    const componentFn = n2.type as (props?: Record<string, unknown>) => VNode
+    const componentFn = n2.type as (props?: VNodeProps) => VNode
     const subTree = componentFn(n2.props || {})
     console.log('[Patch] 组件返回的 subTree:', subTree)
     
@@ -220,7 +220,7 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
 /**
  * 设置元素属性 - 与 mount.ts 保持一致
  */
-function setElementProps(el: HTMLElement | SVGElement, key: string, value: unknown, prevValue?: unknown) {
+function setElementProps(el: HTMLElement | SVGElement, key: string, value: any, prevValue?: any) {
   if (key.startsWith('on')) {
     const event = key.slice(2).toLowerCase();
     if (prevValue) el.removeEventListener(event, prevValue as EventListener);

@@ -3,7 +3,7 @@
  * @param str 包含插值表达式的字符串
  * @param context 上下文对象
  */
-export function interpolate(str: string, context: Record<string, unknown>): string {
+export function interpolate(str: string, context: Record<string, any>): string {
   if (!str) return str || ''
   
   return str.replace(/\{\{(.*?)\}\}/g, (match, expr) => {
@@ -22,7 +22,7 @@ export function interpolate(str: string, context: Record<string, unknown>): stri
  * @param expr 表达式字符串
  * @param context 上下文对象
  */
-export function evaluateExpression(expr: string, context: Record<string, unknown>): unknown {
+export function evaluateExpression(expr: string, context: Record<string, any>): any {
   try {
     // 使用 Function 构造器安全执行表达式
     const fn = new Function('ctx', `with(ctx) { return (${expr}); }`);

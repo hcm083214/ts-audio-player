@@ -2,10 +2,13 @@
  * 语法分析器 - 包含属性解析和 AST 构建
  */
 
+// VNode 属性值类型
+export type ASTPropValue = string | number | boolean | null | undefined;
+
 export interface ASTElement {
   type: 'Element';
   tag: string;
-  props: Record<string, unknown>;
+  props: Record<string, ASTPropValue>;
   directives: Record<string, string>;
   children: ASTNode[];
   elseNode?: ASTElement;
@@ -32,8 +35,8 @@ export type ASTNode = ASTElement | ASTInterpolation | ASTText | ASTRoot;
 /**
  * 解析属性字符串
  */
-export function parseProps(attrStr: string): { props: Record<string, unknown>; directives: Record<string, string> } {
-  const props: Record<string, unknown> = {};
+export function parseProps(attrStr: string): { props: Record<string, ASTPropValue>; directives: Record<string, string> } {
+  const props: Record<string, ASTPropValue> = {};
   const directives: Record<string, string> = {};
   if (!attrStr) return { props, directives };
 

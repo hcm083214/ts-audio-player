@@ -2,12 +2,12 @@
  * 词法分析器 - 将模板字符串转换为 token 数组
  */
 
-import { parseProps } from './parser'
+import { parseProps, ASTPropValue } from './parser'
 
 export interface Token {
   type: 'TAG_START' | 'TAG_END' | 'TEXT' | 'INTERPOLATION';
   value: string;
-  props?: Record<string, unknown>;
+  props?: Record<string, ASTPropValue>;
   directives?: Record<string, string>;
 }
 

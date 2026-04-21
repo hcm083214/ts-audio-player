@@ -1,10 +1,10 @@
-import { VNode } from './types'
+import { VNode, Component, VNodeProps } from './types'
 
 /**
  * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
  * 用于规范化 class 值，支持字符串、对象、数组等多种格式
  */
-function normalizeClass(value: unknown): string {
+function normalizeClass(value: any): string {
   if (!value) return '';
   
   if (typeof value === 'string') {
@@ -18,7 +18,7 @@ function normalizeClass(value: unknown): string {
   
   if (typeof value === 'object') {
     // 对象：{ className: boolean }
-    const obj = value as Record<string, unknown>;
+    const obj = value as Record<string, any>;
     let result = '';
     for (const key in obj) {
       if (obj[key]) {
@@ -52,21 +52,21 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   if (typeof vnode.type === 'object' && vnode.type !== null) {
     console.log('[Mount] 检测到对象式组件')
     
-    const component = vnode.type as Record<string, unknown>
+    const component = vnode.type as Component
     let renderFn: Function
     
     // 如果有 setup 方法，先执行 setup
     if (component.setup) {
       console.log('[Mount] 执行 setup 方法')
-      const setupFn = component.setup as (props: Record<string, unknown>, context: { emit: (event: string, ...args: unknown[]) => void }) => unknown
-      const setupResult = setupFn(vnode.props || {}, { emit: (event: string, ...args: unknown[]) => {} })
+      const setupFn = component.setup
+      const setupResult = setupFn(vnode.props || {}, { emit: (event: string, ...args: any[]) => {} })
       console.log('[Mount] setup 返回:', setupResult)
       
       // 如果 setup 返回了 render 函数
       if (typeof setupResult === 'function') {
         renderFn = setupResult as Function
       } else if (setupResult && typeof setupResult === 'object' && 'render' in setupResult) {
-        renderFn = (setupResult as Record<string, unknown>).render as Function
+        renderFn = (setupResult as Record<string, any>).render as Function
       } else {
         // 使用组件的 render 方法
         renderFn = component.render as Function
@@ -98,7 +98,7 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   if (typeof vnode.type === 'function') {
     console.log('[Mount] 检测到函数式组件，调用组件函数...')
     // 调用组件函数获取子 VNode
-    const componentFn = vnode.type as (props?: Record<string, unknown>) => VNode
+    const componentFn = vnode.type as (props?: VNodeProps) => VNode
     const subTree = componentFn(vnode.props || {})
     console.log('[Mount] 组件返回的 subTree:', subTree)
     
@@ -164,7 +164,7 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
 /**
  * 设置元素属性 - 基于 mVue.ts 实现
  */
-function setElementProps(el: HTMLElement | SVGElement, key: string, value: unknown, prevValue?: unknown) {
+function setElementProps(el: HTMLElement | SVGElement, key: string, value: any, prevValue?: any) {
   if (key.startsWith('on')) {
     // 事件绑定
     const event = key.slice(2).toLowerCase();

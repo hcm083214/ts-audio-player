@@ -20,11 +20,11 @@ if (!app) {
 const routes = [
   {
     path: '/',
-    component: () => h(TestPage, {})
+    component: () => h(TestPage)
   },
   {
     path: '/test',
-    component: () => h(TestPage, {})
+    component: () => h(TestPage)
   }
 ]
 

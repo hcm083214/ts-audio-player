@@ -3,11 +3,14 @@
  * 用于规范化 class 值，支持字符串、对象、数组等多种格式
  */
 
+// Class 值类型定义
+export type ClassValue = string | number | boolean | null | undefined | Record<string, any> | ClassValue[];
+
 /**
  * normalizeClass 辅助函数
  * 用于规范化 class 值，支持字符串、对象、数组等多种格式
  */
-export function normalizeClass(value: unknown): string {
+export function normalizeClass(value: ClassValue): string {
   if (!value) return '';
   
   if (typeof value === 'string') {
@@ -21,7 +24,7 @@ export function normalizeClass(value: unknown): string {
   
   if (typeof value === 'object') {
     // 对象：{ className: boolean }
-    const obj = value as Record<string, unknown>;
+    const obj = value as Record<string, any>;
     let result = '';
     for (const key in obj) {
       if (obj[key]) {
