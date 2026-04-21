@@ -1,6 +1,6 @@
 console.log('[Main] 开始执行 main.ts')
 
-import { compileComponent } from './core/compiler/compileComponent'
+import { compileComponent } from './core/compiler/index'
 import { h } from './core/renderer/h'
 import { createRouter } from './router'
 import TestPage from './pages/TestPage'

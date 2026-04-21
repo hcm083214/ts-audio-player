@@ -24,7 +24,7 @@ export type { VNode, Component, ComponentInstance, VNodeType } from './renderer/
 export { Fragment } from './renderer/types'
 
 // 编译器
-export { compile, createRuntimeCompiler, compileComponent } from './compiler/compileComponent'
+export { compile, createRuntimeCompiler, compileComponent, normalizeClass } from './compiler/index'
 export { interpolate, evaluateExpression } from './compiler/interpolate'
 
 // 路由系统
