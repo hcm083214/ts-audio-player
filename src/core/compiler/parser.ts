@@ -50,42 +50,33 @@ export function parseProps(attrStr: string): { props: Record<string, ASTPropValu
     let key: string;
     let value: string | undefined;
     
-    console.log('[ParseProps] 完整匹配结果:', match);
-    
     if (match[1]) {
       // 双引号属性值
       key = match[1];
       value = match[2];
-      console.log('[ParseProps] 匹配到双引号属性:', key, '=', value);
     } else if (match[3]) {
       // 单引号属性值
       key = match[3];
       value = match[4];
-      console.log('[ParseProps] 匹配到单引号属性:', key, '=', value);
     } else {
       // 无值属性（布尔属性）
       key = match[5];
       value = undefined;
-      console.log('[ParseProps] 匹配到无值属性:', key);
     }
     
     if (key.startsWith(':')) {
       // 动态绑定：保留原始键名（带冒号），在后续处理时再区分
       props[key] = value;
-      console.log('[ParseProps] 动态绑定属性:', key, '=', value);
     } else if (key.startsWith('@')) {
       // 事件绑定
       props[key] = value;
-      console.log('[ParseProps] 事件绑定属性:', key, '=', value);
     } else if (key.startsWith('v-')) {
       // 指令：v-else 没有值，其他指令可能有值
       const directiveName = key.slice(2); // else, if, for, etc.
       directives[directiveName] = value === undefined ? '' : value;
-      console.log('[ParseProps] 指令属性:', key, '=', value);
     } else {
       // 普通属性
       props[key] = value;
-      console.log('[ParseProps] 静态属性:', key, '=', value);
     }
   }
   return { props, directives };

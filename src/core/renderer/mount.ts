@@ -40,27 +40,18 @@ function normalizeClass(value: any): string {
 export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor: Node | null = null): void {
   // 先检查 vnode 是否为空
   if (!vnode) {
-    console.log('[Mount] vnode 为空，返回')
     return;
   }
   
-  console.log('[Mount] 开始挂载 vnode:', vnode)
-  console.log('[Mount] vnode.type:', vnode.type)
-  console.log('[Mount] vnode.type 类型:', typeof vnode.type)
-  
   // 处理对象式组件（Options API）
   if (typeof vnode.type === 'object' && vnode.type !== null) {
-    console.log('[Mount] 检测到对象式组件')
-    
     const component = vnode.type as Component
     let renderFn: Function
     
     // 如果有 setup 方法，先执行 setup
     if (component.setup) {
-      console.log('[Mount] 执行 setup 方法')
       const setupFn = component.setup
       const setupResult = setupFn(vnode.props || {}, { emit: (event: string, ...args: any[]) => {} })
-      console.log('[Mount] setup 返回:', setupResult)
       
       // 如果 setup 返回了 render 函数
       if (typeof setupResult === 'function') {
@@ -73,7 +64,6 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       }
     } else if (component.render) {
       // 直接使用组件的 render 方法
-      console.log('[Mount] 使用组件的 render 方法')
       renderFn = component.render as Function
     } else {
       console.warn('[Mount] 组件没有 render 方法')
@@ -81,12 +71,9 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
     }
     
     // 调用 render 函数获取子 VNode
-    console.log('[Mount] 调用 render 函数...')
     const subTree = renderFn(vnode.props || {}) as VNode
-    console.log('[Mount] render 返回的 subTree:', subTree)
     
     if (subTree) {
-      console.log('[Mount] 递归挂载 subTree...')
       mount(subTree, container, anchor)
     } else {
       console.warn('[Mount] render 返回了 null subTree')
@@ -96,14 +83,11 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
 
   // 处理函数式组件
   if (typeof vnode.type === 'function') {
-    console.log('[Mount] 检测到函数式组件，调用组件函数...')
     // 调用组件函数获取子 VNode
     const componentFn = vnode.type as (props?: VNodeProps) => VNode
     const subTree = componentFn(vnode.props || {})
-    console.log('[Mount] 组件返回的 subTree:', subTree)
     
     if (subTree) {
-      console.log('[Mount] 递归挂载 subTree...')
       mount(subTree, container, anchor)
     } else {
       console.warn('[Mount] 组件返回了 null subTree')
@@ -113,7 +97,6 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
 
   // 判断是否为 SVG 容器或自身就是 svg 标签
   const isSvg = vnode.type === 'svg' || container.tagName.toLowerCase() === 'svg';
-  console.log('[Mount] 创建元素:', vnode.type, 'isSvg:', isSvg)
   
   if (typeof vnode.type === 'string') {
     // 创建元素时判断是否为 SVG
@@ -174,7 +157,6 @@ function setElementProps(el: HTMLElement | SVGElement, key: string, value: any, 
     // SVG 元素的 className 是只读的，必须使用 setAttribute
     // 先规范化 class 值（支持字符串、对象、数组）
     const normalizedClass = normalizeClass(value);
-    console.log('[setElementProps] 设置 class:', value, '->', normalizedClass, '元素类型:', el.tagName);
     if (el instanceof SVGElement) {
       el.setAttribute('class', normalizedClass);
     } else {
@@ -182,7 +164,6 @@ function setElementProps(el: HTMLElement | SVGElement, key: string, value: any, 
     }
   } else if (key === 'style') {
     // style 可能是字符串或对象
-    console.log('[setElementProps] 设置 style:', value, '元素类型:', el.tagName);
     if (typeof value === 'string') {
       (el as HTMLElement).style.cssText = value;
     } else if (typeof value === 'object') {
@@ -195,7 +176,6 @@ function setElementProps(el: HTMLElement | SVGElement, key: string, value: any, 
       cleanValue = value.slice(1, -1);
     }
     // SVG 属性通常区分大小写，但 setAttribute 大部分情况兼容
-    console.log('[setElementProps] 设置属性:', key, '=', cleanValue, '元素类型:', el.tagName);
     el.setAttribute(key, String(cleanValue ?? ''));
   }
 }

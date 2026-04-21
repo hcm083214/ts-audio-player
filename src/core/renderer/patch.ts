@@ -42,10 +42,8 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
   let setupResult: any
   
   if (component.setup) {
-    console.log('[renderComponent] 执行 setup 方法')
     const setupFn = component.setup
     setupResult = setupFn(props, { emit: (event: string, ...args: any[]) => {} })
-    console.log('[renderComponent] setup 返回:', setupResult)
     
     if (typeof setupResult === 'function') {
       renderFn = setupResult as Function
@@ -83,8 +81,6 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
       subTree = renderFn(props, setupResult) as VNode;
     }
     
-    console.log('[renderComponent] render 返回的 subTree:', subTree)
-    
     if (subTree) {
       // 清空容器并重新挂载
       container.innerHTML = ''
@@ -103,15 +99,8 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
  * @param container 容器元素
  */
 export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement): void {
-  console.log('[Patch] 开始 patch')
-  console.log('[Patch] n1:', n1)
-  console.log('[Patch] n2:', n2)
-  console.log('[Patch] n2?.type:', n2?.type)
-  
   // 处理对象式组件（Options API）
   if (n2 && typeof n2.type === 'object' && n2.type !== null) {
-    console.log('[Patch] 检测到对象式组件')
-    
     // 使用 renderComponent 处理对象式组件
     renderComponent(n2.type as Component, n2.props || {}, container)
     return
@@ -119,10 +108,8 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
   
   // 处理函数式组件
   if (n2 && typeof n2.type === 'function') {
-    console.log('[Patch] 检测到函数式组件，调用组件函数...')
     const componentFn = n2.type as (props?: VNodeProps) => VNode
     const subTree = componentFn(n2.props || {})
-    console.log('[Patch] 组件返回的 subTree:', subTree)
     
     if (!n1) {
       // 首次挂载
@@ -140,29 +127,24 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
   
   // 类型不同，替换整个节点
   if (n1 && n2 && n1.type !== n2.type) { 
-    console.log('[Patch] 类型不同，替换节点')
     n1.el?.remove(); 
     n1 = null; 
   }
   
   if (!n1 && !n2) {
-    console.log('[Patch] n1 和 n2 都为空，返回')
     return;
   }
   
   // 挂载新节点
   if (!n1) {
-    console.log('[Patch] 挂载新节点')
     mount(n2!, container);
   }
   // 卸载旧节点
   else if (!n2) {
-    console.log('[Patch] 卸载旧节点')
     n1.el?.remove();
   }
   // 更新节点
   else {
-    console.log('[Patch] 更新节点')
     // 更新属性
     if (n2.props) {
       for (const key in n2.props) {
