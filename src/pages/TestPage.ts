@@ -27,9 +27,13 @@ const TestPage = {
             return author.books.length > 4 ? 'Yes' : 'No'
         })
 
-        const isActive = ref(true)
-        const hasError = ref(false)
-        return { count, increment, decrease, arr, isDisplay, author, publishedBooksMessage , isActive, hasError } // setup 必须返回一个对象
+        const isActive = ref(true)  // 改为 true 以便测试 class 绑定
+        const hasError = ref(true)
+        const classObject = computed(() => ({
+            active: isActive.value && hasError.value,
+            'text-danger': hasError.value 
+        }))
+        return { count, increment, decrease, arr, isDisplay, author, publishedBooksMessage, isActive, hasError,classObject } // setup 必须返回一个对象
     },
     template: `
         <div class="p-4">
@@ -37,6 +41,8 @@ const TestPage = {
                 class="static"
                 :class="{ active: isActive, 'text-danger': hasError }"
             ></div>
+            <div :class="isActive ? 'active' : ''"></div>
+            <div :class="classObject"></div>
             <svg width="16" height="16" class="text-red-500 inline-block" style="display: inline-block;">
                 <use href="#icon-next" width="100%" height="100%"></use>
             </svg>

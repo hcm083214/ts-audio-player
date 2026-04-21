@@ -223,7 +223,9 @@ function setElementProps(el: any, key: string, value: any, prevValue?: any) {
     if (prevValue) el.removeEventListener(event, prevValue);
     if (value) el.addEventListener(event, value);
   } else if (key === 'class') {
-    el.className = value;
+    // 先规范化 class 值（支持字符串、对象、数组）
+    const normalizedClass = normalizeClass(value);
+    el.className = normalizedClass;
   } else if (key === 'style') {
     if (value && typeof value === 'object') {
       Object.assign(el.style, value);

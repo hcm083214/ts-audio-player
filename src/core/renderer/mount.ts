@@ -1,6 +1,36 @@
 import { VNode } from './types'
 
 /**
+ * normalizeClass 辅助函数 - 参考《Vue.js 设计与实现》第 7.7 节
+ * 用于规范化 class 值，支持字符串、对象、数组等多种格式
+ */
+function normalizeClass(value: any): string {
+  if (!value) return '';
+  
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  if (Array.isArray(value)) {
+    // 数组：递归处理每个元素，然后合并
+    return value.map(item => normalizeClass(item)).filter(Boolean).join(' ');
+  }
+  
+  if (typeof value === 'object') {
+    // 对象：{ className: boolean }
+    let result = '';
+    for (const key in value) {
+      if (value[key]) {
+        result += (result ? ' ' : '') + key;
+      }
+    }
+    return result;
+  }
+  
+  return String(value);
+}
+
+/**
  * 挂载虚拟 DOM 到真实 DOM - 基于 mVue.ts 实现，支持 SVG
  * @param vnode 虚拟 DOM 节点
  * @param container 容器元素
@@ -139,11 +169,13 @@ function setElementProps(el: any, key: string, value: any, prevValue?: any) {
     if (value) el.addEventListener(event, value);
   } else if (key === 'class') {
     // SVG 元素的 className 是只读的，必须使用 setAttribute
-    console.log('[setElementProps] 设置 class:', value, '元素类型:', el.tagName);
+    // 先规范化 class 值（支持字符串、对象、数组）
+    const normalizedClass = normalizeClass(value);
+    console.log('[setElementProps] 设置 class:', value, '->', normalizedClass, '元素类型:', el.tagName);
     if (el instanceof SVGElement) {
-      el.setAttribute('class', value);
+      el.setAttribute('class', normalizedClass);
     } else {
-      el.className = value;
+      el.className = normalizedClass;
     }
   } else if (key === 'style') {
     // style 可能是字符串或对象

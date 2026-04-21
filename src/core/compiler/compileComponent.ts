@@ -428,12 +428,25 @@ function generate(ast: any) {
       
       // 添加动态 :class - 保持表达式原样，只替换变量
       if (dynamicClassExpr) {
-        // 智能替换：跳过字符串字面量内部的标识符
-        const processedExpr = smartReplaceVariables(dynamicClassExpr);
+        // 检查是否是对象或数组字面量
+        const trimmedExpr = dynamicClassExpr.trim();
+        const isObjectOrArrayLiteral = trimmedExpr.startsWith('{') || trimmedExpr.startsWith('[');
         
-        console.log('[Generate] :class 表达式:', dynamicClassExpr, '->', processedExpr);
-        
-        classCodeParts.push(processedExpr);
+        if (isObjectOrArrayLiteral) {
+          // 对象/数组字面量：智能替换其中的变量
+          const processedExpr = smartReplaceVariables(dynamicClassExpr);
+          
+          console.log('[Generate] :class 复杂表达式:', dynamicClassExpr, '->', processedExpr);
+          
+          classCodeParts.push(processedExpr);
+        } else {
+          // 其他表达式（包括简单变量、三元表达式等）：使用 smartReplaceVariables 统一处理
+          const processedExpr = smartReplaceVariables(dynamicClassExpr);
+          
+          console.log('[Generate] :class 表达式:', dynamicClassExpr, '->', processedExpr);
+          
+          classCodeParts.push(processedExpr);
+        }
       }
       
       // 生成最终的 class 表达式
