@@ -1,5 +1,6 @@
-import { createRouter } from './core/compiler/router'
+import { createRouter } from './core'
 import TestPage from './pages/TestPage'
+import HomePage from './pages/HomePage'
 
 console.log('[Main] 开始执行 main.ts')
 
@@ -13,11 +14,11 @@ console.log('[Main] app 容器:', app)
 // 导入模块完成
 console.log('[Main] 模块导入完成')
 
-// 配置路由
+// 配置路由（使用 core/compiler/router.ts 中的路由系统）
 const routes = [
   {
     path: '/',
-    component: TestPage
+    component: HomePage
   },
   {
     path: '/test',
@@ -27,7 +28,7 @@ const routes = [
 
 console.log('[Main] 路由配置完成，routes:', routes)
 
-// 创建路由实例（使用 hash 模式，更稳定且无需服务器配置）
+// 创建路由实例（使用 core/compiler/router.ts 中的 createRouter）
 console.log('[Main] 开始创建路由实例...')
 const router = createRouter(routes, 'hash')
 console.log('[Main] 路由实例创建完成')

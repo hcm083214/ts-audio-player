@@ -59,25 +59,21 @@ function track(target: TrackTarget, key: TrackKey) {
 
 function trigger(target: TrackTarget, key: TrackKey) {
   const depsMap = targetMap.get(target);
-  console.log(`🔍 [trigger] depsMap:`, depsMap);
+
   if (!depsMap) {
-    console.log('❌ [trigger] depsMap 不存在，退出');
-    console.log('💡 提示：这通常意味着 track 和 trigger 使用的 target 引用不一致');
     return;
   }
   
   const deps = depsMap.get(key);
-  console.log(`🔍 [trigger] deps (effects):`, deps);
+
   if (deps) {
-    console.log(`✅ [trigger] 触发更新: effects数量=${deps.size}`);
     // 创建副本以防止无限循环或在迭代期间修改集合
     const effectsToRun = new Set(deps);
     effectsToRun.forEach(effectFn => {
-      console.log('🔄 [trigger] 执行 effect');
       effectFn.effect();
     });
   } else {
-    console.log('❌ [trigger] deps 不存在，没有需要执行的 effect');
+    console.warn(`[trigger] 无法触发依赖: ${target} `);
   }
 }
 

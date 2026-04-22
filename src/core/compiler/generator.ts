@@ -169,8 +169,9 @@ export function generate(ast: ASTRoot): string {
     let dynamicClassExpr = props[':class'];
     delete props[':class']; // 从 props 中移除，稍后处理
 
-    // 判断是否为自定义组件（标签名包含连字符）
-    const isCustomComponent = node.tag.includes('-');
+    // 判断是否为自定义组件
+    // Vue 约定：包含连字符（kebab-case）或首字母大写（PascalCase）的标签名都是组件
+    const isCustomComponent = node.tag.includes('-') || /^[A-Z]/.test(node.tag);
 
     // 属性绑定处理
     const propsEntries: string[] = [];

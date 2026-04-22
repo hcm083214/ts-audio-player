@@ -58,7 +58,10 @@ export function compileComponent(component: ComponentOptions): ComponentOptions 
 export function createRuntimeCompiler(template: string, components?: Record<string, any>): (props: Record<string, any>, setupState?: Record<string, any>) => any {
   const renderFn = compile(template);
   return function(props: Record<string, any>, setupState?: Record<string, any>) {
-    const ctx = { ...props, ...(setupState || {}) };
+    // 将 components 合并到 ctx 中,这样模板中的组件标签才能找到对应的组件对象
+    const ctx = { ...props, ...components, ...(setupState || {}) };
+    console.log('[RuntimeCompiler] ctx:', ctx);
+    console.log('[RuntimeCompiler] ctx.HeaderComponent:', ctx.HeaderComponent);
     return renderFn(hFn, ctx, normalizeClassFn);
   };
 }

@@ -1,14 +1,11 @@
 import { ref, onMounted, h, Fragment, compileComponent } from '../core'
 import {getPersonalized,getTopArtists,getTopSong,getTopPlaylist} from '../api/HomeApi'
 import HeaderComponent from '../components/home/HeaderComponet'
-import BannerComponent from '../components/home/BannerComponent'
-import PlaylistComponent from '../components/home/PlaylistComponent'
-import SongListComponent from '../components/home/SongListComponent'
-import ArtistCardComponent from '../components/home/ArtistCardComponent'
-import PlayerBarComponent from '../components/common/PlayerBarComponent'
+
 
 const HomePageComponent = {
   setup() {
+    console.log('[HomePage] setup 被调用')
     // 状态 - 使用 any 类型以兼容 API 返回的数据
     const playlists: any = ref([])
     const topSongs: any = ref([])
@@ -39,9 +36,11 @@ const HomePageComponent = {
 
     // 初始加载
     onMounted(() => {
+      console.log('[HomePage] onMounted 触发')
       loadData()
     })
 
+    console.log('[HomePage] setup 返回')
     return {
       playlists,
       topSongs,
@@ -50,17 +49,12 @@ const HomePageComponent = {
     }
   },
   components: {
-    HeaderComponent,
-    BannerComponent,
-    PlaylistComponent,
-    SongListComponent,
-    ArtistCardComponent,
-    PlayerBarComponent
+    HeaderComponent
+
   },
   template: `
     <div>
-      <HeaderComponent />
-      
+      <HeaderComponent></HeaderComponent>
       <!-- 主内容区 -->
       <main class="w-[1080px] mx-auto px-4 pt-24 pb-20">
         <!-- 加载状态 -->
@@ -71,10 +65,10 @@ const HomePageComponent = {
         <!-- 内容 -->
         <div v-else>
           <!-- 轮播图 -->
-          <BannerComponent :playlists="playlists" />
+          <BannerComponent :playlists="playlists"></BannerComponent>
 
           <!-- 热门推荐标题和分类标签 -->
-          <PlaylistComponent :playlists="playlists" />
+          <PlaylistComponent :playlists="playlists"></PlaylistComponent>
 
           <!-- 热门歌曲 -->
           <div class="mt-12">
@@ -82,7 +76,7 @@ const HomePageComponent = {
               <h2 class="text-2xl font-bold">热门歌曲</h2>
               <a href="#" class="text-primary hover:underline">查看更多</a>
             </div>
-            <SongListComponent :songs="topSongs" />
+            <SongListComponent :songs="topSongs"></SongListComponent>
           </div>
 
           <!-- 歌手推荐 -->
@@ -103,7 +97,9 @@ const HomePageComponent = {
       </main>
 
       <!-- 底部播放栏 -->
-      <PlayerBarComponent />
+      <PlayerBarComponent></PlayerBarComponent>
+
+
     </div>
   `
 }

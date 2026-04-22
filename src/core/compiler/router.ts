@@ -50,8 +50,13 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
 
   // 监听 URL 变化
   const handleUrlChange = () => {
+    console.log('[Router] handleUrlChange 被调用');
+    console.log('[Router] window.location.hash:', window.location.hash);
+    console.log('[Router] window.location.pathname:', window.location.pathname);
+    
     if (mode === 'hash') {
       const hash = window.location.hash.slice(1) || '/';
+      console.log('[Router] 解析后的路径:', hash);
       currentPath.value = hash;
     } else {
       currentPath.value = window.location.pathname;
@@ -65,22 +70,37 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
 
   // 渲染 RouterView 组件
   const renderRouterView = () => {
-    if (!routerViewContainer) return;
+    console.log('[Router] renderRouterView 被调用');
+    console.log('[Router] currentPath.value:', currentPath.value);
+    console.log('[Router] routerViewContainer:', routerViewContainer);
+    
+    if (!routerViewContainer) {
+      console.error('[Router] routerViewContainer 为空!');
+      return;
+    }
     
     const currentPathValue = currentPath.value;
     const component = getMatchedComponent(currentPathValue);
     
+    console.log('[Router] 匹配到的组件:', component);
+    
     if (!component) {
+      console.warn('[Router] 未找到匹配的组件,路径:', currentPathValue);
       routerViewContainer.innerHTML = '<div>404 Not Found</div>';
       return;
     }
     
     // 创建 VNode 并挂载
     const vnode = hFn(component, {}, []);
+    console.log('[Router] 创建的 VNode:', vnode);
     
     if (vnode) {
       routerViewContainer.innerHTML = '';
+      console.log('[Router] 开始 mount...');
       mount(vnode, routerViewContainer);
+      console.log('[Router] mount 完成, container.innerHTML:', routerViewContainer.innerHTML.substring(0, 100));
+    } else {
+      console.error('[Router] VNode 为空!');
     }
   };
 
@@ -132,12 +152,20 @@ export function createRouter(routes: RouteConfig[], mode: 'hash' | 'history' = '
       
       // 创建 RouterView 容器
       if (app._container) {
+        console.log('[Router] install: app._container 存在', app._container);
         routerViewContainer = document.createElement('div');
         routerViewContainer.id = 'router-view';
+        console.log('[Router] 创建 routerViewContainer:', routerViewContainer);
+        
         app._container.appendChild(routerViewContainer);
+        console.log('[Router] routerViewContainer 已添加到 DOM');
+        console.log('[Router] app._container 当前内容:', app._container.innerHTML.substring(0, 100));
         
         // 首次渲染
+        console.log('[Router] 开始首次渲染...');
         renderRouterView();
+      } else {
+        console.error('[Router] install: app._container 不存在!');
       }
     },
     push(path: string) {
