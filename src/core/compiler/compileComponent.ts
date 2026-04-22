@@ -37,7 +37,7 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
 
     const children: any[] = []
 
-    Array.from(actualRoot.childNodes).forEach((child, index) => {
+    Array.from(actualRoot.childNodes).forEach((child) => {
       const vnode = buildVNode(child, context, components)
       if (vnode) {
         children.push(vnode)

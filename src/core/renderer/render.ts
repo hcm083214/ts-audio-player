@@ -8,10 +8,17 @@ import { patch } from './patch'
  * @param container 容器元素
  */
 export function render(vnode: VNode, container: Element): void {
-  if (container.firstChild) {
-    patch((container as any)._vnode, vnode)
-  } else {
-    mount(vnode, container)
+  if (!vnode) {
+    // 清空容器
+    container.innerHTML = ''
+    return
   }
-  (container as any)._vnode = vnode
+  
+  const oldVnode = (container as any)._vnode || null
+  
+  // 执行 patch
+  patch(oldVnode, vnode, container, null)
+  
+  // 保存当前 vnode
+  ;(container as any)._vnode = vnode
 }

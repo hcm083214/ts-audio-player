@@ -1,5 +1,13 @@
-// 编译器模块统一导出
-// 向后兼容：重新导出 compileComponent 的内容
-// 这样现有的导入 '../core/template-compiler' 仍然可以工作
-export { compileComponent, createRuntimeCompiler } from './compileComponent'
-export { interpolate, evaluateExpression } from './interpolate'
+/**
+ * 编译器主入口 - 基于 mVue.ts 实现，支持 v-else
+ * 
+ * 注意：此文件引用了不存在的模块（tokenizer, parser, normalizeClass）
+ * 请使用 compileComponent.ts 中的实现
+ */
+
+// 暂时注释掉不可用的导入
+// import { h as hFn } from '../renderer/h'
+// import { tokenize } from './tokenizer'
+// import { parse } from './parser'
+// import { generate } from './generator'
+// import { normalizeClass as normalizeClassFn } from './normalizeClass'
