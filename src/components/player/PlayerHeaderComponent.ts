@@ -9,7 +9,7 @@ const PlayerHeaderComponent = {
       <div class="container mx-auto px-4 py-3 flex items-center">
         <a href="javascript:void(0)" @click="$router.push('/')" class="mr-4">
           <svg width="24" height="24" class="inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-arrow-left" width="100%" height="100%"></use>
+            <use href="#icon-arrow-left" width="100%" height="100%"></use>
           </svg>
         </a>
         <h1 class="text-xl font-bold">音乐播放</h1>
