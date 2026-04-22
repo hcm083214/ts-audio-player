@@ -132,12 +132,10 @@ const BannerComponent = {
       @mouseenter="stopAutoPlay"
       @mouseleave="startAutoPlay"
     >
-      <!-- 轮播图容器 - 使用 transform 横向滚动 -->
       <div 
         :class="getContainerClass()"
         :style="getContainerStyle()"
       >
-        <!-- 所有图片横向排列（包括副本） -->
         <div
           v-for="(banner, index) in bannerLists"
           :key="banner.id + '-' + index"
@@ -151,7 +149,6 @@ const BannerComponent = {
         </div>
       </div>
       
-      <!-- 左侧切换按钮 -->
       <button
         @click="prev"
         class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors"
@@ -162,7 +159,7 @@ const BannerComponent = {
 
       </button>
       
-      <!-- 右侧切换按钮 -->
+
       <button
         @click="next"
         class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors"
@@ -172,7 +169,7 @@ const BannerComponent = {
         </svg>
       </button>
       
-      <!-- 底部指示器 - 只显示原始5个，不包括副本 -->
+      
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
         <div class="indicator flex space-x-2">
           <span

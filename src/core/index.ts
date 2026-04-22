@@ -28,7 +28,7 @@ export { compile, createRuntimeCompiler, compileComponent, normalizeClass } from
 export { interpolate, evaluateExpression } from './compiler/interpolate'
 
 // 路由系统
-export { createRouter } from './compiler/router'
+export { createRouter,useRoute,useRouter } from './compiler/router'
 
 // 向后兼容：导出 buildVNode（如果存在）
 // export { buildVNode } from './renderer/buildVNode'

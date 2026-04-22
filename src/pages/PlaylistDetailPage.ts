@@ -150,7 +150,7 @@ const PlaylistDetailPage = {
           class="mb-6 px-4 py-2 text-gray-600 hover:text-primary transition-colors flex items-center gap-2"
         >
           <svg width="16" height="16" class="inline-block" style="display: inline-block;">
-            <use xlink:href="#icon-back" width="100%" height="100%"></use>
+            <use href="#icon-back" width="100%" height="100%"></use>
           </svg>
           返回
         </button>

@@ -1,6 +1,9 @@
 import { ref, onMounted, h, Fragment, compileComponent } from '../core'
 import {getPersonalized,getTopArtists,getTopSong,getTopPlaylist} from '../api/HomeApi'
 import HeaderComponent from '../components/home/HeaderComponet'
+import BannerComponent from '../components/home/BannerComponent'
+
+
 
 
 const HomePageComponent = {
@@ -49,7 +52,8 @@ const HomePageComponent = {
     }
   },
   components: {
-    HeaderComponent
+    HeaderComponent,
+    BannerComponent,
 
   },
   template: `
@@ -57,47 +61,17 @@ const HomePageComponent = {
       <HeaderComponent></HeaderComponent>
       <!-- 主内容区 -->
       <main class="w-[1080px] mx-auto px-4 pt-24 pb-20">
-        <!-- 加载状态 -->
+        
         <div v-if="loading" class="flex justify-center items-center h-screen">
           <div class="text-2xl font-bold text-primary">加载中...</div>
         </div>
-
-        <!-- 内容 -->
-        <div v-else>
-          <!-- 轮播图 -->
+        <div v-else> 
           <BannerComponent :playlists="playlists"></BannerComponent>
-
-          <!-- 热门推荐标题和分类标签 -->
-          <PlaylistComponent :playlists="playlists"></PlaylistComponent>
-
-          <!-- 热门歌曲 -->
-          <div class="mt-12">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-2xl font-bold">热门歌曲</h2>
-              <a href="#" class="text-primary hover:underline">查看更多</a>
-            </div>
-            <SongListComponent :songs="topSongs"></SongListComponent>
-          </div>
-
-          <!-- 歌手推荐 -->
-          <div class="mt-12">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-2xl font-bold">歌手推荐</h2>
-              <a href="#" class="text-primary hover:underline">查看更多</a>
-            </div>
-            <div class="grid grid-cols-5 gap-4">
-              <ArtistCardComponent
-                v-for="artist in topArtists"
-                :key="artist.id"
-                :artist="artist"
-              />
-            </div>
-          </div>
         </div>
       </main>
 
-      <!-- 底部播放栏 -->
-      <PlayerBarComponent></PlayerBarComponent>
+
+
 
 
     </div>

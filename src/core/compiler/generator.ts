@@ -181,12 +181,34 @@ export function generate(ast: ASTRoot): string {
       const val = props[key];
       if (key.startsWith(':')) {
         // 动态绑定
-        if (isCustomComponent) {
-          // 自定义组件：需要访问 .value 以解包 Ref
-          propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}?.value ?? ctx.${val}`);
+        const propName = key.slice(1);
+        const expr = String(val).trim();
+        
+        // 判断是否是简单标识符（如 :key="banner.id"）
+        const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/.test(expr);
+        
+        if (isSimpleIdentifier) {
+          // 简单标识符：直接使用 ctx.xxx
+          if (isCustomComponent) {
+            // 自定义组件：需要访问 .value 以解包 Ref
+            propsEntries.push(`${JSON.stringify(propName)}: ctx.${expr}?.value ?? ctx.${expr}`);
+          } else {
+            // 普通 HTML 元素：直接使用 ctx.xxx
+            propsEntries.push(`${JSON.stringify(propName)}: ctx.${expr}`);
+          }
         } else {
-          // 普通 HTML 元素：直接使用 ctx.xxx
-          propsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
+          // 复杂表达式：智能替换其中的变量
+          // 例如：'indicator-' + banner.id -> 'indicator-' + ctx.banner.id
+          const processedExpr = expr.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+            // 跳过 JavaScript 关键字和特殊变量
+            if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Math', 'Date', 'JSON', 'console'].includes(varName)) {
+              return varName;
+            }
+            // 将变量名替换为 ctx.xxx（不添加 .value，因为可能是嵌套属性访问）
+            return `ctx.${varName}`;
+          });
+          
+          propsEntries.push(`${JSON.stringify(propName)}: ${processedExpr}`);
         }
       } else if (key.startsWith('@')) {
         // 事件绑定：转换为 onClick 格式（大驼峰）
