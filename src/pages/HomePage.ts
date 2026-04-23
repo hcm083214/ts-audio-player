@@ -53,27 +53,25 @@ const HomePageComponent = {
   },
   components: {
     HeaderComponent,
-    BannerComponent,
-
+    BannerComponent
   },
   template: `
     <div>
+      <!-- 页面头部注释 -->
       <HeaderComponent></HeaderComponent>
       <!-- 主内容区 -->
       <main class="w-[1080px] mx-auto px-4 pt-24 pb-20">
-        
+        <!-- 加载状态 -->
         <div v-if="loading" class="flex justify-center items-center h-screen">
           <div class="text-2xl font-bold text-primary">加载中...</div>
         </div>
+        <!-- 数据展示区域 -->
         <div v-else> 
+          <!-- 轮播图 -->
           <BannerComponent :playlists="playlists"></BannerComponent>
         </div>
       </main>
-
-
-
-
-
+      <!-- 页面底部注释 -->
     </div>
   `
 }

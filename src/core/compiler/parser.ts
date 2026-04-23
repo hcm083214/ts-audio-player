@@ -25,12 +25,17 @@ export interface ASTText {
   content: string;
 }
 
+export interface ASTComment {
+  type: 'Comment';
+  content: string;
+}
+
 export interface ASTRoot {
   type: 'Root';
   children: ASTNode[];
 }
 
-export type ASTNode = ASTElement | ASTInterpolation | ASTText | ASTRoot;
+export type ASTNode = ASTElement | ASTInterpolation | ASTText | ASTComment | ASTRoot;
 
 /**
  * 解析属性字符串
@@ -107,6 +112,8 @@ export function parse(tokens: Token[]): ASTRoot {
       parent.children.push({ type: 'Interpolation', content: token.value });
     } else if (token.type === 'TEXT') {
       parent.children.push({ type: 'Text', content: token.value });
+    } else if (token.type === 'COMMENT') {
+      parent.children.push({ type: 'Comment', content: token.value });
     }
   });
   return root;

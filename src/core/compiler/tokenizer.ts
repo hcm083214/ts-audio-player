@@ -5,7 +5,7 @@
 import { parseProps, ASTPropValue } from './parser'
 
 export interface Token {
-  type: 'TAG_START' | 'TAG_END' | 'TEXT' | 'INTERPOLATION';
+  type: 'TAG_START' | 'TAG_END' | 'TEXT' | 'INTERPOLATION' | 'COMMENT';
   value: string;
   props?: Record<string, ASTPropValue>;
   directives?: Record<string, string>;
@@ -20,6 +20,18 @@ export function tokenize(template: string): Token[] {
   while (i < template.length) {
     const char = template[i];
     if (char === '<') {
+      // 检测注释 <!-- -->
+      if (template.slice(i, i + 4) === '<!--') {
+        const endCommentIndex = template.indexOf('-->', i + 4);
+        if (endCommentIndex !== -1) {
+          // 提取注释内容（不包括 <!-- 和 -->）
+          const commentContent = template.slice(i + 4, endCommentIndex);
+          tokens.push({ type: 'COMMENT', value: commentContent });
+          i = endCommentIndex + 3; // 跳过 '-->'
+          continue;
+        }
+      }
+      
       if (template[i + 1] === '/') {
         // 使用捕获组准确提取结束标签名，支持连字符
         const match = template.slice(i).match(/^<\/([a-zA-Z][\w-]*)>/);

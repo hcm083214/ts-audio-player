@@ -167,6 +167,12 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
     // 更新属性
     if (n2.props) {
       for (const key in n2.props) {
+        // 🔥 key 是内部属性，不更新到 DOM
+        if (key === 'key') {
+          n2.key = n2.props[key];
+          continue;
+        }
+        
         setElementProps(n1.el!, key, n2.props[key], n1.props?.[key]);
       }
     }
@@ -174,6 +180,9 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
     // 移除旧属性中不再存在的键
     if (n1.props) {
       for (const key in n1.props) {
+        // 🔥 key 是内部属性，不需要移除
+        if (key === 'key') continue;
+        
         if (!(key in (n2.props || {}))) {
           setElementProps(n1.el!, key, null, n1.props[key]);
         }

@@ -2,6 +2,7 @@ import { h, compileComponent, ref, computed, onMounted, onUnmounted } from '../.
 
 const BannerComponent = {
   setup(props: { playlists: any }) {
+
     // 当前激活的轮播图索引
     const activeIndex = ref(0)
     // 定时器引用
@@ -69,7 +70,7 @@ const BannerComponent = {
     function startAutoPlay() {
       if (timer) clearInterval(timer)
       timer = setInterval(() => {
-        next()
+        // next()
       }, 3000) // 3 秒切换一次
     }
     
@@ -81,25 +82,6 @@ const BannerComponent = {
       }
     }
     
-    // 获取容器样式 - 🔥 关键：确保响应式依赖被收集
-    function getContainerStyle() {
-      const offset = activeIndex.value * 100
-      const style = {
-        transform: `translateX(-${offset}%)`
-      }
-      return style
-    }
-    
-    // 获取容器类名 - 根据是否禁用过渡动态调整
-    function getContainerClass() {
-      return isTransitionDisabled.value 
-        ? 'flex h-full' 
-        : 'flex h-full transition-transform duration-500 ease-in-out'
-    }
-    
-
-    
-
     
     // 组件挂载时启动自动播放
     onMounted(() => {
@@ -116,13 +98,12 @@ const BannerComponent = {
       originalBanners,
       activeIndex,
       indicatorClasses, // 🔥 导出预计算的类名数组
+      isTransitionDisabled,
       prev,
       next,
       goTo,
       startAutoPlay,
-      stopAutoPlay,
-      getContainerStyle,
-      getContainerClass,
+      stopAutoPlay
     }
   },
   props: ['playlists'],
@@ -133,8 +114,8 @@ const BannerComponent = {
       @mouseleave="startAutoPlay"
     >
       <div 
-        :class="getContainerClass()"
-        :style="getContainerStyle()"
+        :class="isTransitionDisabled ? 'flex h-full' : 'flex h-full transition-transform duration-500 ease-in-out'"
+        :style="{'transform': 'translateX(-' + (activeIndex * 100) + '%)'}"
       >
         <div
           v-for="(banner, index) in bannerLists"

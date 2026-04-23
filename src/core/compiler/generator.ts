@@ -78,7 +78,126 @@ export function generate(ast: ASTRoot): string {
         .replace(/\t/g, '\\t');
       return `'${escapedContent}'`;
     }
+    else if (node.type === 'Comment') {
+      // 注释节点：在开发环境中保留注释，生产环境中可以移除
+      // 这里选择生成一个返回 null 的表达式，表示不渲染任何内容
+      // 如果需要保留注释用于调试，可以改为返回注释节点
+      return 'null';
+    }
     return '';
+  }
+
+  // 辅助函数：在 v-for 作用域内智能替换变量
+  function replaceVarsInForScope(expr: string, itemVar: string, indexVar?: string): string {
+    let result = '';
+    let i = 0;
+    const len = expr.length;
+    
+    while (i < len) {
+      const char = expr[i];
+      
+      // 检测字符串字面量（保持原样）
+      if (char === '"' || char === "'" || char === '`') {
+        const quote = char;
+        result += char;
+        i++;
+        
+        while (i < len && expr[i] !== quote) {
+          if (expr[i] === '\\') {
+            result += expr[i];
+            i++;
+            if (i < len) {
+              result += expr[i];
+              i++;
+            }
+          } else {
+            result += expr[i];
+            i++;
+          }
+        }
+        
+        if (i < len) {
+          result += expr[i];
+          i++;
+        }
+      }
+      // 检测标识符
+      else if (/[a-zA-Z_$]/.test(char)) {
+        let identifier = '';
+        
+        while (i < len && /[a-zA-Z0-9_$\-]/.test(expr[i])) {
+          identifier += expr[i];
+          i++;
+        }
+        
+        // 跳过空白字符，检查是否是对象键名（后面跟着冒号）
+        let j = i;
+        while (j < len && /\s/.test(expr[j])) {
+          j++;
+        }
+        
+        const isObjectKey = j < len && expr[j] === ':';
+        
+        if (isObjectKey) {
+          // 这是对象键名，保持原样不替换
+          result += identifier;
+        } else {
+          // 检查后面是否跟着点号（属性访问）
+          const isPropertyAccess = j < len && expr[j] === '.';
+          
+          if (isPropertyAccess) {
+            // 这是对象.属性的形式，需要判断对象是否是作用域变量
+            let shouldReplace = false;
+            if (identifier === itemVar || (indexVar && identifier === indexVar)) {
+              // 作用域变量的属性访问：banner.id -> banner.id（保持不变）
+              result += identifier;
+            } else {
+              // 外部变量的属性访问：activeIndex.value -> ctx.activeIndex
+              result += `ctx.${identifier}`;
+              shouldReplace = true;
+            }
+            
+            // 关键修复：跳过整个属性访问链（.xxx.yyy.zzz）
+            while (i < len && expr[i] === '.') {
+              // 添加点号
+              result += expr[i];
+              i++;
+              
+              // 提取属性名
+              let propName = '';
+              while (i < len && /[a-zA-Z0-9_$\-]/.test(expr[i])) {
+                propName += expr[i];
+                i++;
+              }
+              result += propName;
+              
+              // 跳过空白
+              while (i < len && /\s/.test(expr[i])) {
+                i++;
+              }
+            }
+          } else {
+            // 独立变量
+            if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this', 
+                 'String', 'Number', 'Boolean', 'Array', 'Object', 'Math', 'Date', 'JSON', 'console'].includes(identifier)) {
+              result += identifier;
+            } else if (identifier === itemVar || (indexVar && identifier === indexVar)) {
+              // 作用域变量（不需要 .value）
+              result += identifier;
+            } else {
+              // 外部变量：需要添加 .value 解包 Ref
+              result += `ctx.${identifier}.value`;
+            }
+          }
+        }
+      } else {
+        // 其他字符（运算符、标点等）
+        result += char;
+        i++;
+      }
+    }
+    
+    return result;
   }
 
   // 辅助函数：智能替换变量，跳过字符串字面量和对象键名
@@ -90,8 +209,8 @@ export function generate(ast: ASTRoot): string {
     while (i < len) {
       const char = expr[i];
       
-      // 检测字符串字面量（单引号或双引号）
-      if (char === '"' || char === "'") {
+      // 检测字符串字面量（单引号、双引号或反引号）
+      if (char === '"' || char === "'" || char === '`') {
         const quote = char;
         result += char;
         i++;
@@ -173,186 +292,223 @@ export function generate(ast: ASTRoot): string {
     // Vue 约定：包含连字符（kebab-case）或首字母大写（PascalCase）的标签名都是组件
     const isCustomComponent = node.tag.includes('-') || /^[A-Z]/.test(node.tag);
 
-    // 属性绑定处理
-    const propsEntries: string[] = [];
-    
-    // 处理其他属性（除了 class）
-    for (const key in props) {
-      const val = props[key];
-      if (key.startsWith(':')) {
-        // 动态绑定
-        const propName = key.slice(1);
-        const expr = String(val).trim();
-        
-        // 判断是否是简单标识符（如 :key="banner.id"）
-        const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/.test(expr);
-        
-        if (isSimpleIdentifier) {
-          // 简单标识符：直接使用 ctx.xxx
-          if (isCustomComponent) {
-            // 自定义组件：需要访问 .value 以解包 Ref
-            propsEntries.push(`${JSON.stringify(propName)}: ctx.${expr}?.value ?? ctx.${expr}`);
+    // 生成属性绑定代码的辅助函数（可重用）
+    const generatePropsEntries = (propsToProcess: Record<string, any>, itemVar?: string, indexVar?: string): string[] => {
+      const entries: string[] = [];
+      
+      for (const key in propsToProcess) {
+        const val = propsToProcess[key];
+        if (key.startsWith(':')) {
+          // 动态绑定
+          const propName = key.slice(1);
+          const expr = String(val).trim();
+          
+          // 调试日志
+          if (itemVar && expr.includes(itemVar)) {
+            console.log('[generatePropsEntries]', {
+              propName,
+              expr,
+              itemVar,
+              indexVar,
+              willUseReplaceVarsInForScope: true
+            });
+          }
+          
+          // 判断是否是简单标识符
+          const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/.test(expr);
+          
+          if (isSimpleIdentifier) {
+            // 检查是否包含点号（属性访问）
+            const hasDot = expr.includes('.');
+            
+            if (hasDot && itemVar) {
+              // 属性访问：提取根变量名
+              const rootVar = expr.split('.')[0];
+              
+              if (rootVar === itemVar || (indexVar && rootVar === indexVar)) {
+                // 根变量是作用域变量，整个表达式保持不变
+                entries.push(`${JSON.stringify(propName)}: ${expr}`);
+              } else {
+                // 根变量是外部变量，添加 ctx. 前缀到根变量
+                const restPath = expr.substring(rootVar.length); // .picUrl
+                entries.push(`${JSON.stringify(propName)}: ctx.${rootVar}${restPath}`);
+              }
+            } else if (itemVar && (expr === itemVar || (indexVar && expr === indexVar))) {
+              // 直接使用作用域变量（无属性访问）
+              entries.push(`${JSON.stringify(propName)}: ${expr}`);
+            } else if (isCustomComponent) {
+              // 自定义组件：需要访问 .value 以解包 Ref
+              entries.push(`${JSON.stringify(propName)}: ctx.${expr}?.value ?? ctx.${expr}`);
+            } else {
+              // 普通 HTML 元素：直接使用 ctx.xxx
+              entries.push(`${JSON.stringify(propName)}: ctx.${expr}`);
+            }
           } else {
-            // 普通 HTML 元素：直接使用 ctx.xxx
-            propsEntries.push(`${JSON.stringify(propName)}: ctx.${expr}`);
+            // 复杂表达式：智能替换其中的变量
+            let processedExpr: string;
+            if (itemVar) {
+              // 在 v-for 作用域内
+              console.log('[replaceVarsInForScope called]', { expr, itemVar, indexVar });
+              processedExpr = replaceVarsInForScope(expr, itemVar, indexVar);
+              console.log('[replaceVarsInForScope result]', { original: expr, processed: processedExpr });
+            } else {
+              // 不在 v-for 作用域内，使用 smartReplaceVariables
+              processedExpr = smartReplaceVariables(expr);
+            }
+            
+            entries.push(`${JSON.stringify(propName)}: ${processedExpr}`);
+          }
+        } else if (key.startsWith('@')) {
+          // 事件绑定：转换为 onClick 格式（大驼峰）
+          const rawEventName = key.slice(1);
+          const pascalEventName = rawEventName
+            .split('-')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join('');
+          const eventName = 'on' + pascalEventName;
+          
+          const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(String(val).trim());
+          
+          if (isSimpleIdentifier) {
+            // 函数引用
+            if (itemVar && (String(val).trim() === itemVar || (indexVar && String(val).trim() === indexVar))) {
+              entries.push(`${JSON.stringify(eventName)}: ${val}`);
+            } else {
+              entries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
+            }
+          } else {
+            // 表达式
+            let handlerCode: string;
+            if (itemVar) {
+              handlerCode = replaceVarsInForScope(String(val), itemVar, indexVar).replace(/\bctx\.([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, 'ctx.$1.value');
+            } else {
+              handlerCode = String(val).replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+                if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
+                  return varName;
+                }
+                return `ctx.${varName}.value`;
+              });
+            }
+            entries.push(`${JSON.stringify(eventName)}: () => { ${handlerCode} }`);
           }
         } else {
-          // 复杂表达式：智能替换其中的变量
-          // 例如：'indicator-' + banner.id -> 'indicator-' + ctx.banner.id
-          const processedExpr = expr.replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
-            // 跳过 JavaScript 关键字和特殊变量
-            if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Math', 'Date', 'JSON', 'console'].includes(varName)) {
-              return varName;
-            }
-            // 将变量名替换为 ctx.xxx（不添加 .value，因为可能是嵌套属性访问）
-            return `ctx.${varName}`;
-          });
-          
-          propsEntries.push(`${JSON.stringify(propName)}: ${processedExpr}`);
+          // 静态属性
+          entries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
         }
-      } else if (key.startsWith('@')) {
-        // 事件绑定：转换为 onClick 格式（大驼峰）
-        const rawEventName = key.slice(1); // click, page-change, etc.
-        // 将 kebab-case 转换为 PascalCase
-        const pascalEventName = rawEventName
-          .split('-')
-          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-          .join('');
-        const eventName = 'on' + pascalEventName; // @click -> onClick, @page-change -> onPageChange
-        
-        // 判断是表达式还是函数引用
-        // 如果是函数名（如 increment），直接使用 ctx.xxx
-        // 如果是表达式（如 count++），需要将变量替换为 ctx.xxx.value
-        const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(String(val).trim());
-        
-        if (isSimpleIdentifier) {
-          // 函数引用：increment -> ctx.increment
-          propsEntries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
-        } else {
-          // 表达式：count++ -> ctx.count.value++
-          const handlerCode = String(val).replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
-            // 跳过 JavaScript 关键字和特殊变量
-            if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
-              return varName;
-            }
-            // 将变量名替换为 ctx.xxx.value（因为都是 Ref 对象）
-            return `ctx.${varName}.value`;
-          });
-          propsEntries.push(`${JSON.stringify(eventName)}: () => { ${handlerCode} }`);
-        }
-      } else {
-        // 静态属性：使用 JSON.stringify 自动添加引号
-        propsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
       }
-    }
-    
-    // 处理 class 合并（静态 + 动态）- 参考《Vue.js 设计与实现》第 10.4 节
-    if (staticClass || dynamicClassExpr) {
+      
+      return entries;
+    };
+
+    // 生成 class 合并代码的辅助函数
+    const generateClassEntry = (staticClass: any, dynamicClassExpr: any, itemVar?: string, indexVar?: string): string | null => {
+      if (!staticClass && !dynamicClassExpr) return null;
+      
       let classCodeParts: string[] = [];
       
-      // 添加静态 class
       if (staticClass) {
         classCodeParts.push(JSON.stringify(staticClass));
       }
       
-      // 添加动态 :class - 保持表达式原样，只替换变量
       if (dynamicClassExpr) {
-        // 检查是否是对象或数组字面量
         const trimmedExpr = String(dynamicClassExpr).trim();
-        const isObjectOrArrayLiteral = trimmedExpr.startsWith('{') || trimmedExpr.startsWith('[');
         
-        if (isObjectOrArrayLiteral) {
-          // 对象/数组字面量：智能替换其中的变量
-          const processedExpr = smartReplaceVariables(String(dynamicClassExpr));
-          
-          classCodeParts.push(processedExpr);
+        let processedExpr: string;
+        if (itemVar) {
+          // 在 v-for 作用域内
+          processedExpr = replaceVarsInForScope(String(dynamicClassExpr), itemVar, indexVar);
         } else {
-          // 其他表达式（包括简单变量、三元表达式等）：使用 smartReplaceVariables 统一处理
-          const processedExpr = smartReplaceVariables(String(dynamicClassExpr));
-          
-          classCodeParts.push(processedExpr);
+          // 不在 v-for 作用域内
+          processedExpr = smartReplaceVariables(String(dynamicClassExpr));
         }
+        
+        classCodeParts.push(processedExpr);
       }
       
-      // 生成最终的 class 表达式
       if (classCodeParts.length === 1) {
-        propsEntries.unshift(`${JSON.stringify('class')}: ${classCodeParts[0]}`);
+        return `${JSON.stringify('class')}: ${classCodeParts[0]}`;
       } else if (classCodeParts.length > 1) {
-        // 多个部分需要合并：使用 normalizeClass 辅助函数
-        propsEntries.unshift(`${JSON.stringify('class')}: normalizeClass([${classCodeParts.join(', ')}])`);
+        return `${JSON.stringify('class')}: normalizeClass([${classCodeParts.join(', ')}])`;
       }
-    }
-    
-    const propsStr = `{${propsEntries.join(', ')}}`;
-    const childrenStr = node.children.length ? `[${node.children.map(genNode).join(',')}]` : '[]';
-    
-    let hCode: string;
-    
-    if (isCustomComponent) {
-      // 自定义组件：从 ctx 中获取组件对象
-      // 将 kebab-case 转换为 camelCase，例如 m-component -> MComponent
-      const componentName = node.tag
-        .split('-')
-        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-        .join('');
       
-      hCode = `h(ctx.${componentName}, ${propsStr}, ${childrenStr})`;
-    } else {
-      // 普通 HTML 元素
-      hCode = `h('${node.tag}', ${propsStr}, ${childrenStr})`;
-    }
+      return null;
+    };
+
+    // 生成基础 h() 调用的辅助函数
+    const generateBaseHCall = (customPropsEntries?: string[]): string => {
+      const propsEntries = customPropsEntries || generatePropsEntries(props);
+      
+      // 处理 class 合并
+      const classEntry = generateClassEntry(staticClass, dynamicClassExpr);
+      if (classEntry) {
+        propsEntries.unshift(classEntry);
+      }
+      
+      const propsStr = `{${propsEntries.join(', ')}}`;
+      const childrenStr = node.children.length ? `[${node.children.map(genNode).join(',')}]` : '[]';
+      
+      if (isCustomComponent) {
+        const componentName = node.tag
+          .split('-')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('');
+        
+        return `h(ctx.${componentName}, ${propsStr}, ${childrenStr})`;
+      } else {
+        return `h('${node.tag}', ${propsStr}, ${childrenStr})`;
+      }
+    };
 
     // 处理 v-for 逻辑
-    let code = hCode;
+    let code: string;
     
     if (node.directives.for) {
       const forExpression = node.directives.for;
-      // 解析 v-for 表达式：支持 "item in list" 或 "(item, index) in list" 格式
       const match = forExpression.match(/^\s*(?:\(\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?:,\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*)?\)|([a-zA-Z_$][a-zA-Z0-9_$]*))\s+in\s+(.+)\s*$/);
       
       if (match) {
-        const itemVar = match[1] || match[3]; // 元素变量名
-        const indexVar = match[2]; // 索引变量名（可选）
-        const sourceExpr = match[4].trim(); // 数据源表达式
+        const itemVar = match[1] || match[3];
+        const indexVar = match[2];
+        const sourceExpr = match[4].trim();
         
-        // 生成 map 函数的参数
         let mapParams = itemVar;
         if (indexVar) {
           mapParams += `, ${indexVar}`;
         }
         
-        // 生成带作用域的子节点代码
-        const generateScopedChildren = (children: ASTNode[]): string => {
+        // 关键修复：在 v-for 作用域内生成子节点代码，传递 itemVar 和 indexVar
+        const generateScopedChildren = (children: ASTNode[], scopeItemVar: string, scopeIndexVar?: string): string => {
           return children.map((child: ASTNode) => {
             if (child.type === 'Interpolation') {
-              // 检查插值表达式是否引用了循环变量
               const content = child.content;
               
-              // 如果引用了 item 或 index 变量，直接使用该变量（不需要 ctx 前缀）
-              if (content === itemVar || (indexVar && content === indexVar)) {
+              if (content === scopeItemVar || (scopeIndexVar && content === scopeIndexVar)) {
                 return `String(${content})`;
               }
               
-              // 其他情况按正常逻辑处理（访问 ctx）
               return `String(ctx.${content}?.value ?? ctx.${content})`;
             } else if (child.type === 'Element') {
-              // 递归处理嵌套元素，生成 h() 调用
-              // 注意：这里简化处理，不处理嵌套元素的 v-for/v-if
-              const nestedPropsEntries: string[] = [];
-              for (const key in child.props || {}) {
-                const val = child.props[key];
-                if (key.startsWith(':')) {
-                  nestedPropsEntries.push(`${JSON.stringify(key.slice(1))}: ctx.${val}`);
-                } else if (key.startsWith('@')) {
-                  const eventName = 'on' + key.slice(1);
-                  nestedPropsEntries.push(`${JSON.stringify(eventName)}: ctx.${val}`);
-                } else {
-                  nestedPropsEntries.push(`${JSON.stringify(key)}: ${JSON.stringify(val)}`);
-                }
+              // 递归处理嵌套元素，传递作用域变量
+              const scopedPropsEntries = generatePropsEntries(child.props || {}, scopeItemVar, scopeIndexVar);
+              const scopedClassEntry = generateClassEntry(null, null, scopeItemVar, scopeIndexVar);
+              if ((child as ASTElement).props && (child as ASTElement).props[':class']) {
+                const classEntry = generateClassEntry(null, (child as ASTElement).props[':class'], scopeItemVar, scopeIndexVar);
+                if (classEntry) scopedPropsEntries.unshift(classEntry);
               }
-              const nestedPropsStr = `{${nestedPropsEntries.join(', ')}}`;
-              const nestedChildrenStr = child.children.length ? `[${generateScopedChildren(child.children)}]` : '[]';
-              return `h('${child.tag}', ${nestedPropsStr}, ${nestedChildrenStr})`;
+              
+              const nestedPropsStr = `{${scopedPropsEntries.join(', ')}}`;
+              const nestedChildrenStr = child.children.length ? `[${generateScopedChildren(child.children, scopeItemVar, scopeIndexVar)}]` : '[]';
+              
+              const isChildCustomComponent = child.tag.includes('-') || /^[A-Z]/.test(child.tag);
+              if (isChildCustomComponent) {
+                const componentName = child.tag
+                  .split('-')
+                  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join('');
+                return `h(ctx.${componentName}, ${nestedPropsStr}, ${nestedChildrenStr})`;
+              } else {
+                return `h('${child.tag}', ${nestedPropsStr}, ${nestedChildrenStr})`;
+              }
             } else if (child.type === 'Text') {
               const escapedContent = child.content
                 .replace(/\\/g, '\\\\')
@@ -362,23 +518,44 @@ export function generate(ast: ASTRoot): string {
                 .replace(/\r/g, '\\r')
                 .replace(/\t/g, '\\t');
               return `'${escapedContent}'`;
+            } else if (child.type === 'Comment') {
+              return 'null';
             }
             return '';
           }).join(',');
         };
         
-        const scopedChildrenStr = `[${generateScopedChildren(node.children)}]`;
-        const scopedHCode = `h('${node.tag}', ${propsStr}, ${scopedChildrenStr})`;
+        const scopedChildrenStr = `[${generateScopedChildren(node.children, itemVar, indexVar)}]`;
         
-        // 获取数据源（需要解包 Ref）
-        // sourceExpr 是变量名，需要通过 ctx 访问
+        // 为当前节点生成带作用域的 h() 调用
+        const scopedPropsEntries = generatePropsEntries(props, itemVar, indexVar);
+        const scopedClassEntry = generateClassEntry(staticClass, dynamicClassExpr, itemVar, indexVar);
+        if (scopedClassEntry) scopedPropsEntries.unshift(scopedClassEntry);
+        
+        const scopedPropsStr = `{${scopedPropsEntries.join(', ')}}`;
+        const scopedHCode = isCustomComponent 
+          ? `h(ctx.${node.tag.split('-').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join('')}, ${scopedPropsStr}, ${scopedChildrenStr})`
+          : `h('${node.tag}', ${scopedPropsStr}, ${scopedChildrenStr})`;
+        
         const sourceAccess = `(ctx.${sourceExpr}?.value ?? ctx.${sourceExpr})`;
         
-        // 生成 map 调用
         code = `${sourceAccess}.map((${mapParams}) => ${scopedHCode})`;
+        
+        // 调试日志
+        console.log('[Generate v-for]', {
+          itemVar,
+          indexVar,
+          mapParams,
+          sourceExpr,
+          scopedHCode: scopedHCode.substring(0, 200) + '...'
+        });
       } else {
         console.warn('[Generate] v-for 表达式解析失败:', forExpression);
+        code = generateBaseHCall();
       }
+    } else {
+      // 没有 v-for，使用基础逻辑
+      code = generateBaseHCall();
     }
     
     // 处理 v-if / v-else 逻辑（在 v-for 之后处理）

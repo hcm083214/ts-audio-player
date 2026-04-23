@@ -16,7 +16,7 @@ const HeaderComponent = {
                         />
                         <div class="absolute left-3.5 top-1/2 transform -translate-y-1/2">
                             <svg width="16" height="16" class="text-gray-100 inline-block" style="display: inline-block;">
-                                <use href="#icon-search" width="100%" height="100%"></use>
+                                <use xlink:href="#icon-search" width="100%" height="100%"></use>
                             </svg>
                         </div>
                     </div>

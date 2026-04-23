@@ -10,9 +10,7 @@ import { ReactiveEffect } from '../reactivity/reactive'
  * @param anchor 锚点节点（用于插入位置控制）
  */
 export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor: Node | null = null): void {
-  console.log('[Mount] mount 被调用');
-  console.log('[Mount] vnode.type:', typeof vnode.type === 'object' ? 'Component Object' : vnode.type);
-  console.log('[Mount] container:', container);
+
   
   // 先检查 vnode 是否为空
   if (!vnode) {
@@ -22,7 +20,6 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   
   // 处理对象式组件（Options API）
   if (typeof vnode.type === 'object' && vnode.type !== null) {
-    console.log('[Mount] 检测到组件对象,开始处理...');
     const component = vnode.type as Component
     
     let renderFn: Function
@@ -30,10 +27,8 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
     // 如果有 setup 方法，先执行 setup
     let setupResult: any
     if (component.setup) {
-      console.log('[Mount] 执行 setup 方法...');
       const setupFn = component.setup
       setupResult = setupFn(vnode.props || {}, { emit: (event: string, ...args: any[]) => {} })
-      console.log('[Mount] setup 返回结果:', typeof setupResult);
       
       // 如果 setup 返回了 render 函数
       if (typeof setupResult === 'function') {
@@ -42,12 +37,10 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
         renderFn = (setupResult as Record<string, any>).render as Function
       } else {
         // 使用组件的 render 方法
-        console.log('[Mount] 使用组件的 render 方法');
         renderFn = component.render as Function
       }
     } else if (component.render) {
       // 直接使用组件的 render 方法
-      console.log('[Mount] 直接使用组件的 render 方法');
       renderFn = component.render as Function
     } else {
       console.warn('[Mount] 组件没有 render 方法')
@@ -56,7 +49,6 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
     
     // 🔥 关键修复：使用 effect 包裹 render 函数，实现响应式更新
     const effectFn = new ReactiveEffect(() => {
-      console.log('[Mount] ReactiveEffect 执行中...');
       // 构建上下文：合并 props、components 和 setup 返回值
       // components 来自 vnode.type (组件定义对象)
       const componentDef = vnode.type as any;
@@ -66,13 +58,11 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
         ...(setupResult || {}) 
       };
       
-      console.log('[Mount] ctx.HeaderComponent:', ctx.HeaderComponent);
       
       // 调用 render 函数获取子 VNode
       // 检测 render 函数的参数数量，适配不同签名
       let subTree: VNode | VNode[] | null
       try {
-        console.log('[Mount] 开始执行 renderFn, 参数数量:', renderFn.length);
         if (renderFn.length === 3) {
           // 编译后的函数签名：(h, ctx, normalizeClass)
           subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[]
@@ -83,46 +73,32 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
           // 旧版函数签名：(props, setupState)
           subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
         }
-        console.log('[Mount] renderFn 执行完成, subTree 类型:', Array.isArray(subTree) ? 'Array' : typeof subTree);
-        if (Array.isArray(subTree)) {
-          console.log('[Mount] subTree 数组内容:');
-          subTree.forEach((vnode, index) => {
-            console.log(`  [${index}] type:`, vnode?.type);
-          });
-        }
+
       } catch (error) {
         console.error('[Mount] render 函数执行出错:', error);
         return;
       }
       
       if (subTree) {
-        console.log('[Mount] 清空容器并挂载 subTree...');
         // 清空容器
         container.innerHTML = ''
         
         // 如果 subTree 是数组，遍历挂载每个元素
         if (Array.isArray(subTree)) {
-          console.log('[Mount] subTree 是数组,长度:', subTree.length);
           subTree.forEach((child, index) => {
             if (child) {
-              console.log('[Mount] 挂载数组元素', index);
               mount(child, container, anchor)
             }
           })
         } else {
           // 单个 VNode，直接挂载
-          console.log('[Mount] 挂载单个 VNode');
           mount(subTree, container, anchor)
         }
-      } else {
-        console.warn('[Mount] render 返回了 null subTree')
-      }
+      } 
     })
     
     // 执行 effect，触发首次渲染
-    console.log('[Mount] 执行 effectFn.effect()');
     effectFn.effect()
-    console.log('[Mount] effectFn.effect() 执行完成');
     return
   }
 
@@ -162,6 +138,12 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
     // 设置属性
     if (vnode.props) {
       for (const key in vnode.props) {
+        // 🔥 关键修复：key 是 Vue 内部使用的特殊属性，不应该渲染到 DOM
+        if (key === 'key') {
+          vnode.key = vnode.props[key];
+          continue; // 跳过，不设置为 DOM 属性
+        }
+        
         setElementProps(el, key, vnode.props[key]);
       }
     }

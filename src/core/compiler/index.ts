@@ -18,7 +18,12 @@ export function compile(template: string): CompiledRenderFn {
   const tokens = tokenize(template);
   const ast = parse(tokens);
   const code = generate(ast);
-  console.log('[Compile] 生成的代码:', code);
+  
+  // 调试日志：输出完整生成的代码（仅对包含 v-for 的模板）
+  if (template.includes('v-for')) {
+    console.log('[Compile] 生成的代码:', code);
+  }
+  
   // 将 normalizeClass 作为第三个参数传递
   return new Function('h', 'ctx', 'normalizeClass', `return ${code}`) as CompiledRenderFn;
 }
