@@ -46,12 +46,20 @@ export function tokenize(template: string): Token[] {
       } else {
         // 使用 [\s\S] 替代 . 以匹配包括换行符在内的所有字符
         // 标签名支持字母、数字、下划线和连字符（用于自定义组件如 m-component）
-        const match = template.slice(i).match(/^<([a-zA-Z][\w-]*)([\s\S]*?)>/);
+        const match = template.slice(i).match(/^<([a-zA-Z][\w-]*)([\s\S]*?)(\/?)>/);
         if (match) {
           const tagName = match[1]; // 直接从捕获组获取标签名
           const attrsStr = match[2] || ''; // 属性字符串（可能为空，包含换行符）
+          const isSelfClosing = match[3] === '/'; // 检测是否是自闭合标签
+          
           const { props, directives } = parseProps(attrsStr);
           tokens.push({ type: 'TAG_START', value: tagName, props, directives });
+          
+          // 🔥 关键修复：如果是自闭合标签，立即添加 TAG_END token
+          if (isSelfClosing) {
+            tokens.push({ type: 'TAG_END', value: tagName });
+          }
+          
           i += match[0].length;
         }
       }

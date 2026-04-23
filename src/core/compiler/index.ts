@@ -17,6 +17,31 @@ export type CompiledRenderFn = (h: typeof hFn, ctx: Record<string, any>, normali
 export function compile(template: string): CompiledRenderFn {
   const tokens = tokenize(template);
   const ast = parse(tokens);
+  
+  // 调试日志：输出 AST 结构（仅对 BannerComponent）
+  if (template.includes('bannerLists')) {
+    // 简化输出，只显示标签层级
+    const printAST = (node: any, indent: number = 0): string => {
+      const prefix = '  '.repeat(indent);
+      if (node.type === 'Element') {
+        let result = `${prefix}<${node.tag}>\n`;
+        if (node.children) {
+          node.children.forEach((child: any) => {
+            result += printAST(child, indent + 1);
+          });
+        }
+        return result;
+      } else if (node.type === 'Text') {
+        return `${prefix}[TEXT]\n`;
+      } else if (node.type === 'Interpolation') {
+        return `${prefix}[{{ ${node.content} }}]\n`;
+      }
+      return '';
+    };
+    
+    console.log('[Compile] AST 结构:\n', printAST(ast));
+  }
+  
   const code = generate(ast);
   
   // 调试日志：输出完整生成的代码（仅对包含 v-for 的模板）
