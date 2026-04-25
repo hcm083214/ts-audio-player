@@ -72,9 +72,13 @@ const HomePageComponent = {
         <!-- 数据展示区域 -->
         <div v-else> 
           <!-- 轮播图 -->
-          <BannerComponent :playlists="playlists"></BannerComponent>
-                    <!-- 热门推荐标题和分类标签 -->
-          <PlaylistComponent :playlists="playlists"></PlaylistComponent>
+          <div class="mb-2">
+            <BannerComponent :playlists="playlists"></BannerComponent>
+          </div>
+          <!-- 热门推荐标题和分类标签 -->
+          <div class="mb-2">
+            <PlaylistComponent :playlists="playlists"></PlaylistComponent>
+          </div>
 
           <!-- 热门歌曲 -->
 

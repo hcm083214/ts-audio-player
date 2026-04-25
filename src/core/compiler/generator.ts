@@ -172,15 +172,10 @@ export function generate(ast: ASTRoot): string {
                 i++;
               }
               result += propName;
-              
-              // 跳过空白
-              while (i < len && /\s/.test(expr[i])) {
-                i++;
-              }
             }
             
             // 🔥 关键：处理完属性访问链后，直接进入下一轮循环
-            // 不要执行后面的独立变量处理逻辑
+            // 不要执行后面的独立变量处理逻辑，也不要跳过空白字符
             continue;
           } else {
             // 独立变量
@@ -206,7 +201,7 @@ export function generate(ast: ASTRoot): string {
     return result;
   }
 
-  // 辅助函数：智能替换变量，跳过字符串字面量和对象键名
+  // 辅助函数：智能替换变量，跳过字符串字面量、对象键名和属性访问
   function smartReplaceVariables(expr: string): string {
     let result = '';
     let i = 0;
@@ -241,7 +236,7 @@ export function generate(ast: ASTRoot): string {
           i++;
         }
       } 
-      // 检测对象键名模式：identifier followed by colon
+      // 检测标识符
       else if (/[a-zA-Z_$]/.test(char)) {
         let identifier = '';
         
@@ -250,21 +245,56 @@ export function generate(ast: ASTRoot): string {
           i++;
         }
         
-        // 跳过空白字符，检查是否是键名（后面跟着冒号）
+        // 跳过空白字符，检查是否是对象键名（后面跟着冒号）
         let j = i;
         while (j < len && /\s/.test(expr[j])) {
           j++;
         }
         
-        if (j < len && expr[j] === ':') {
+        const isObjectKey = j < len && expr[j] === ':';
+        
+        if (isObjectKey) {
           // 这是对象键名，保持原样不替换
           result += identifier;
         } else {
-          // 这是普通变量或值，需要替换
-          if (['true', 'false', 'null', 'undefined', 'this', 'in', 'of'].includes(identifier)) {
-            result += identifier;
+          // 检查后面是否跟着点号（属性访问）
+          const isPropertyAccess = j < len && expr[j] === '.';
+          
+          if (isPropertyAccess) {
+            // 🔥 这是对象.属性的形式（如 playlist.coverImgUrl）
+            // 只给根变量添加 ctx. 前缀，不要添加 .value
+            result += `ctx.${identifier}`;
+            
+            // 处理整个属性访问链（.xxx.yyy.zzz）
+            while (i < len && expr[i] === '.') {
+              // 添加点号
+              result += expr[i];
+              i++;
+              
+              // 提取属性名
+              let propName = '';
+              while (i < len && /[a-zA-Z0-9_$\-]/.test(expr[i])) {
+                propName += expr[i];
+                i++;
+              }
+              result += propName;
+              
+              // 跳过空白
+              while (i < len && /\s/.test(expr[i])) {
+                i++;
+              }
+            }
+            
+            // 🔥 关键：处理完属性访问链后，直接进入下一轮循环
+            // 不要跳过空白字符，让它们在下一次循环中被正常处理
+            continue;
           } else {
-            result += `ctx.${identifier}.value`;
+            // 独立变量
+            if (['true', 'false', 'null', 'undefined', 'this', 'in', 'of'].includes(identifier)) {
+              result += identifier;
+            } else {
+              result += `ctx.${identifier}.value`;
+            }
           }
         }
       } else {

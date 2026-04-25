@@ -1,4 +1,4 @@
-import { h, compileComponent, useRouter } from '../../core'
+import { h, compileComponent ,useRouter, useRoute } from '../../core'
 
 interface PlaylistCardProps {
   playlist: {
@@ -11,8 +11,7 @@ interface PlaylistCardProps {
 }
 
 const PlaylistCardComponent = {
-  setup(props: any) {
-    // 获取路由实例
+  setup(props: Record<string, any>) {
     const router = useRouter()
     
     // 格式化播放量
@@ -26,6 +25,7 @@ const PlaylistCardComponent = {
     }
 
     return {
+      playlist: props.playlist,  // 将 props 暴露给模板
       formatPlayCount,
       navigateToDetail
     }
