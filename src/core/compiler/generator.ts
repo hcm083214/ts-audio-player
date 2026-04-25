@@ -146,18 +146,20 @@ export function generate(ast: ASTRoot): string {
           const isPropertyAccess = j < len && expr[j] === '.';
           
           if (isPropertyAccess) {
-            // 这是对象.属性的形式，需要判断对象是否是作用域变量
-            let shouldReplace = false;
+            // 🔥 这是对象.属性的形式（如 playlist.coverImgUrl）
+            let baseVar = '';
+            
             if (identifier === itemVar || (indexVar && identifier === indexVar)) {
-              // 作用域变量的属性访问：banner.id -> banner.id（保持不变）
-              result += identifier;
+              // 作用域变量的属性访问：banner.id -> banner.id
+              baseVar = identifier;
             } else {
-              // 外部变量的属性访问：activeIndex.value -> ctx.activeIndex
-              result += `ctx.${identifier}`;
-              shouldReplace = true;
+              // 外部变量的属性访问：playlist.coverImgUrl -> ctx.playlist.coverImgUrl
+              baseVar = `ctx.${identifier}`;
             }
             
-            // 关键修复：跳过整个属性访问链（.xxx.yyy.zzz）
+            result += baseVar;
+            
+            // 处理整个属性访问链（.xxx.yyy.zzz）
             while (i < len && expr[i] === '.') {
               // 添加点号
               result += expr[i];
@@ -176,6 +178,10 @@ export function generate(ast: ASTRoot): string {
                 i++;
               }
             }
+            
+            // 🔥 关键：处理完属性访问链后，直接进入下一轮循环
+            // 不要执行后面的独立变量处理逻辑
+            continue;
           } else {
             // 独立变量
             if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this', 
@@ -303,16 +309,6 @@ export function generate(ast: ASTRoot): string {
           const propName = key.slice(1);
           const expr = String(val).trim();
           
-          // 调试日志
-          if (itemVar && expr.includes(itemVar)) {
-            console.log('[generatePropsEntries]', {
-              propName,
-              expr,
-              itemVar,
-              indexVar,
-              willUseReplaceVarsInForScope: true
-            });
-          }
           
           // 判断是否是简单标识符
           const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/.test(expr);
@@ -348,9 +344,7 @@ export function generate(ast: ASTRoot): string {
             let processedExpr: string;
             if (itemVar) {
               // 在 v-for 作用域内
-              console.log('[replaceVarsInForScope called]', { expr, itemVar, indexVar });
               processedExpr = replaceVarsInForScope(expr, itemVar, indexVar);
-              console.log('[replaceVarsInForScope result]', { original: expr, processed: processedExpr });
             } else {
               // 不在 v-for 作用域内，使用 smartReplaceVariables
               processedExpr = smartReplaceVariables(expr);
@@ -380,9 +374,13 @@ export function generate(ast: ASTRoot): string {
             // 表达式
             let handlerCode: string;
             if (itemVar) {
-              handlerCode = replaceVarsInForScope(String(val), itemVar, indexVar).replace(/\bctx\.([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, 'ctx.$1.value');
+              // 🔥 关键修复：replaceVarsInForScope 已经处理了响应式变量的 .value 解包
+              // 不需要再次应用替换规则，直接使用其返回值
+              handlerCode = replaceVarsInForScope(String(val), itemVar, indexVar);
             } else {
-              handlerCode = String(val).replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g, (varName: string) => {
+              // 🔥 同样修复：只替换独立的变量，不替换属性访问链
+              // 使用负向前瞻 (?!\.) 排除后面跟着点号的情况
+              handlerCode = String(val).replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)(?!\.)/g, (varName: string) => {
                 if (['value', 'target', 'event', 'e', '$event', 'true', 'false', 'null', 'undefined', 'this'].includes(varName)) {
                   return varName;
                 }
@@ -541,14 +539,6 @@ export function generate(ast: ASTRoot): string {
         
         code = `${sourceAccess}.map((${mapParams}) => ${scopedHCode})`;
         
-        // 调试日志
-        console.log('[Generate v-for]', {
-          itemVar,
-          indexVar,
-          mapParams,
-          sourceExpr,
-          scopedHCode: scopedHCode.substring(0, 200) + '...'
-        });
       } else {
         console.warn('[Generate] v-for 表达式解析失败:', forExpression);
         code = generateBaseHCall();

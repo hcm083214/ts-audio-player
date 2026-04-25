@@ -1,15 +1,18 @@
-import { h, compileComponent, onMounted, ref } from '../../core'
+import { h, compileComponent, onMounted, ref, useRouter } from '../../core'
 import { getSongCategories, SongCategory, getTopPlaylist } from '../../api/HomeApi'
-import { useRouter } from '../../router'
 import PlaylistCardComponent from '../common/PlaylistCardComponent'
 
 const PlaylistComponent = {
-  setup(props: { playlists: any }) {
+  setup(props: Record<string, any>) {
     const playlists: any = props.playlists
     const categories = ref<string[]>([])
     const currentCategory = ref<string>('全部')
     const topPlaylists: any = ref([])
     const playlistsLoading = ref(false)
+    
+    // 获取路由实例
+    const router = useRouter()
+
     onMounted(async () => {
       const result = await getSongCategories()
       categories.value = result.sub.map((cat: SongCategory) => cat.name).slice(0, 8)
@@ -34,8 +37,7 @@ const PlaylistComponent = {
     }
 
     function getMore() {
-      // 跳转到歌单页面
-      const router = useRouter()
+      // 使用路由实例进行导航
       router.push('/playlist')
     }
 

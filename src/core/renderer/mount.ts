@@ -14,7 +14,6 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
   
   // 先检查 vnode 是否为空
   if (!vnode) {
-    console.warn('[Mount] vnode 为空,直接返回');
     return;
   }
   
@@ -43,7 +42,6 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       // 直接使用组件的 render 方法
       renderFn = component.render as Function
     } else {
-      console.warn('[Mount] 组件没有 render 方法')
       return
     }
     
@@ -60,22 +58,38 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       
       
       // 调用 render 函数获取子 VNode
-      // 检测 render 函数的参数数量，适配不同签名
       let subTree: VNode | VNode[] | null
       try {
+        console.log('[Mount] 准备调用 renderFn');
+        console.log('[Mount] renderFn.length:', renderFn.length);
+        console.log('[Mount] componentDef.components:', (vnode.type as any).components);
+        console.log('[Mount] ctx keys:', Object.keys(ctx));
+        console.log('[Mount] ctx 是否为空对象:', Object.keys(ctx).length === 0);
+        
+        // 🔥 关键调试：打印 renderFn 的源码前500字符
+        const fnStr = renderFn.toString();
+        console.log('[Mount] renderFn 源码片段:', fnStr.substring(0, 500));
+        
+        // 编译后的 render 函数签名：(h, ctx, normalizeClass) => VNode
         if (renderFn.length === 3) {
-          // 编译后的函数签名：(h, ctx, normalizeClass)
+          console.log('[Mount] 调用 renderFn(h, ctx, normalizeClass)');
+          console.log('[Mount] h 参数:', h);
+          console.log('[Mount] ctx 参数:', ctx);
+          console.log('[Mount] normalizeClass 参数:', normalizeClass);
           subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[]
         } else if (renderFn.length === 2) {
-          // 旧版编译函数签名：(h, ctx)
-          subTree = renderFn(h, ctx) as VNode | VNode[]
+          console.log('[Mount] 调用 renderFn(h, ctx)');
+          // 运行时编译器返回的包装函数：(props, setupState) => VNode
+          subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
         } else {
-          // 旧版函数签名：(props, setupState)
+          console.log('[Mount] 调用 renderFn(props, setupResult), length:', renderFn.length);
+          // 其他情况，尝试直接调用
           subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
         }
 
       } catch (error) {
         console.error('[Mount] render 函数执行出错:', error);
+        console.error('[Mount] 错误堆栈:', (error as Error).stack);
         return;
       }
       
@@ -118,8 +132,6 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       } else {
         mount(subTree, container, anchor)
       }
-    } else {
-      console.warn('[Mount] 组件返回了 null subTree')
     }
     return
   }

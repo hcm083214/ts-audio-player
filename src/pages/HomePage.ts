@@ -2,6 +2,8 @@ import { ref, onMounted, h, Fragment, compileComponent } from '../core'
 import {getPersonalized,getTopArtists,getTopSong,getTopPlaylist} from '../api/HomeApi'
 import HeaderComponent from '../components/home/HeaderComponet'
 import BannerComponent from '../components/home/BannerComponent'
+import PlaylistComponent from '../components/home/PlaylistComponent'
+import SongListComponent from '../components/home/SongListComponent'
 
 
 
@@ -53,7 +55,9 @@ const HomePageComponent = {
   },
   components: {
     HeaderComponent,
-    BannerComponent
+    BannerComponent,
+    PlaylistComponent,
+    SongListComponent
   },
   template: `
     <div>
@@ -69,6 +73,11 @@ const HomePageComponent = {
         <div v-else> 
           <!-- 轮播图 -->
           <BannerComponent :playlists="playlists"></BannerComponent>
+                    <!-- 热门推荐标题和分类标签 -->
+          <PlaylistComponent :playlists="playlists"></PlaylistComponent>
+
+          <!-- 热门歌曲 -->
+
         </div>
       </main>
       <!-- 页面底部注释 -->

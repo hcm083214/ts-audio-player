@@ -27,7 +27,7 @@ const SongListComponent = {
             </a>
           </div>
           <p class="text-xs text-gray-500 mt-1">
-            {{ song.artists.map(artist => artist.name).join('/') }}
+            {{ song.artists ? song.artists.map(artist => artist.name).join('/') : '未知艺术家' }}
           </p>
         </div>
         <div class="text-gray-400">

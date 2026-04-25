@@ -61,27 +61,33 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
   
   // 使用 effect 包裹 render 函数
   const effectFn = new ReactiveEffect(() => {
-    console.log('🔄 [renderComponent] Effect 执行，准备渲染组件')
-    
     // 判断 renderFn 的签名类型
     // 如果是编译后的函数：(h, ctx) => VNode
     // 如果是旧版函数：(props, setupState) => VNode
     
     let subTree: VNode | VNode[] | null;
     
+    // 🔥 关键修复：获取组件定义对象，提取 components
+    const componentDef = component as any;
+    
     // 检查 renderFn 是否是编译后的函数（通过 Function 构造函数创建的）
     if (renderFn.length === 3) {
       // 编译后的函数签名：(h, ctx, normalizeClass)
-      const ctx = { ...props, ...(setupResult as object || {}) };
-      console.log('🔍 [renderComponent] ctx 对象:', ctx);
-      console.log('🔍 [renderComponent] ctx.count:', ctx.count);
-      console.log('🔍 [renderComponent] ctx.count.value:', ctx.count?.value);
-      console.log('🔍 [renderComponent] setupResult.count:', (setupResult as any)?.count);
-      console.log('🔍 [renderComponent] 两者是否相同?', ctx.count === (setupResult as any)?.count);
+      // 🔥 修复：添加 components 到 ctx 中
+      const ctx = { 
+        ...props, 
+        ...(componentDef.components || {}),  // 添加子组件到 ctx
+        ...(setupResult as object || {}) 
+      };
       subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[];
     } else if (renderFn.length === 2) {
       // 旧版编译函数签名：(h, ctx)
-      const ctx = { ...props, ...(setupResult as object || {}) };
+      // 🔥 修复：添加 components 到 ctx 中
+      const ctx = { 
+        ...props, 
+        ...(componentDef.components || {}),  // 添加子组件到 ctx
+        ...(setupResult as object || {}) 
+      };
       subTree = renderFn(h, ctx) as VNode | VNode[];
     } else {
       // 旧版函数签名：(props, setupState)
