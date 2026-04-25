@@ -5,6 +5,119 @@
 import { ASTElement, ASTRoot, ASTNode } from './parser'
 
 /**
+ * 处理插值表达式中的变量替换
+ * 例如：formatPlayCount(playlist.playCount) -> ctx.formatPlayCount(ctx.playlist.playCount)
+ *       playlist.name -> ctx.playlist.name
+ */
+function processInterpolationExpr(expr: string): string {
+  let result = '';
+  let i = 0;
+  const len = expr.length;
+  
+  while (i < len) {
+    const char = expr[i];
+    
+    // 检测字符串字面量（保持原样）
+    if (char === '"' || char === "'" || char === '`') {
+      const quote = char;
+      result += char;
+      i++;
+      
+      while (i < len && expr[i] !== quote) {
+        if (expr[i] === '\\') {
+          result += expr[i];
+          i++;
+          if (i < len) {
+            result += expr[i];
+            i++;
+          }
+        } else {
+          result += expr[i];
+          i++;
+        }
+      }
+      
+      if (i < len) {
+        result += expr[i];
+        i++;
+      }
+    }
+    // 检测标识符
+    else if (/[a-zA-Z_$]/.test(char)) {
+      let identifier = '';
+      
+      while (i < len && /[a-zA-Z0-9_$]/.test(expr[i])) {
+        identifier += expr[i];
+        i++;
+      }
+      
+      // 检查后面是否跟着点号（属性访问）或左括号（函数调用）
+      let j = i;
+      while (j < len && /\s/.test(expr[j])) {
+        j++;
+      }
+      
+      const isPropertyAccess = j < len && expr[j] === '.';
+      const isFunctionCall = j < len && expr[j] === '(';
+      
+      if (isFunctionCall) {
+        // 函数调用：只给函数名添加 ctx. 前缀
+        result += `ctx.${identifier}`;
+        
+        // 处理函数参数
+        let parenDepth = 1;
+        let k = j + 1;
+        
+        let argsContent = '';
+        while (k < len && parenDepth > 0) {
+          if (expr[k] === '(') {
+            parenDepth++;
+          } else if (expr[k] === ')') {
+            parenDepth--;
+            if (parenDepth === 0) {
+              break;
+            }
+          }
+          argsContent += expr[k];
+          k++;
+        }
+        
+        // 递归处理参数
+        const processedArgs = processInterpolationExpr(argsContent);
+        result += `(${processedArgs})`;
+        
+        i = k + 1;
+      } else if (isPropertyAccess) {
+        // 属性访问链：只给根变量添加 ctx. 前缀
+        result += `ctx.${identifier}`;
+        
+        // 处理整个属性访问链
+        while (i < len && expr[i] === '.') {
+          result += expr[i];
+          i++;
+          
+          let propName = '';
+          while (i < len && /[a-zA-Z0-9_$]/.test(expr[i])) {
+            propName += expr[i];
+            i++;
+          }
+          result += propName;
+        }
+      } else {
+        // 独立变量：添加 ctx. 前缀和 .value
+        result += `ctx.${identifier}.value`;
+      }
+    } else {
+      // 其他字符
+      result += char;
+      i++;
+    }
+  }
+  
+  return result;
+}
+
+/**
  * 代码生成：将 AST 转换为可执行代码
  */
 export function generate(ast: ASTRoot): string {
@@ -64,8 +177,9 @@ export function generate(ast: ASTRoot): string {
       return genElementContent(node);
     } 
     else if (node.type === 'Interpolation') {
-      // 插值表达式需要访问 .value 来解包 Ref
-      return `String(ctx.${node.content}?.value ?? ctx.${node.content})`;
+      // 插值表达式需要正确处理函数调用、属性访问和变量
+      // 使用专门的处理函数来解析插值表达式
+      return `String((${processInterpolationExpr(node.content)}))`;
     } 
     else if (node.type === 'Text') {
       // 转义特殊字符，防止生成的代码出现语法错误
@@ -144,6 +258,7 @@ export function generate(ast: ASTRoot): string {
         } else {
           // 检查后面是否跟着点号（属性访问）
           const isPropertyAccess = j < len && expr[j] === '.';
+          const isFunctionCall = j < len && expr[j] === '(';
           
           if (isPropertyAccess) {
             // 🔥 这是对象.属性的形式（如 playlist.coverImgUrl）
@@ -176,6 +291,37 @@ export function generate(ast: ASTRoot): string {
             
             // 🔥 关键：处理完属性访问链后，直接进入下一轮循环
             // 不要执行后面的独立变量处理逻辑，也不要跳过空白字符
+            continue;
+          } else if (isFunctionCall) {
+            // 🔥 这是函数调用（如 formatPlayCount(...)）
+            // 只添加 ctx. 前缀，不要添加 .value
+            result += `ctx.${identifier}`;
+            
+            // 🔥 关键：递归处理括号内的参数
+            // i 当前指向 '('
+            let parenDepth = 1;
+            let j = i + 1; // 跳过 '('
+            
+            let argsContent = '';
+            while (j < len && parenDepth > 0) {
+              if (expr[j] === '(') {
+                parenDepth++;
+              } else if (expr[j] === ')') {
+                parenDepth--;
+                if (parenDepth === 0) {
+                  break;
+                }
+              }
+              argsContent += expr[j];
+              j++;
+            }
+            
+            // 递归处理括号内的内容（需要传递 itemVar 和 indexVar 以正确处理作用域变量）
+            const processedArgs = replaceVarsInForScope(argsContent, itemVar, indexVar);
+            result += `(${processedArgs})`;
+            
+            // 更新 i 到右括号的位置之后，并继续处理下一个字符
+            i = j + 1;
             continue;
           } else {
             // 独立变量
@@ -257,8 +403,9 @@ export function generate(ast: ASTRoot): string {
           // 这是对象键名，保持原样不替换
           result += identifier;
         } else {
-          // 检查后面是否跟着点号（属性访问）
+          // 检查后面是否跟着点号（属性访问）或左括号（函数调用）
           const isPropertyAccess = j < len && expr[j] === '.';
+          const isFunctionCall = j < len && expr[j] === '(';
           
           if (isPropertyAccess) {
             // 🔥 这是对象.属性的形式（如 playlist.coverImgUrl）
@@ -278,15 +425,41 @@ export function generate(ast: ASTRoot): string {
                 i++;
               }
               result += propName;
-              
-              // 跳过空白
-              while (i < len && /\s/.test(expr[i])) {
-                i++;
-              }
             }
             
             // 🔥 关键：处理完属性访问链后，直接进入下一轮循环
             // 不要跳过空白字符，让它们在下一次循环中被正常处理
+            continue;
+          } else if (isFunctionCall) {
+            // 🔥 这是函数调用（如 formatPlayCount(...)）
+            // 只添加 ctx. 前缀，不要添加 .value
+            result += `ctx.${identifier}`;
+            
+            // 🔥 关键：递归处理括号内的参数
+            // i 当前指向 '('
+            let parenDepth = 1;
+            let j = i + 1; // 跳过 '('
+            
+            let argsContent = '';
+            while (j < len && parenDepth > 0) {
+              if (expr[j] === '(') {
+                parenDepth++;
+              } else if (expr[j] === ')') {
+                parenDepth--;
+                if (parenDepth === 0) {
+                  break;
+                }
+              }
+              argsContent += expr[j];
+              j++;
+            }
+            
+            // 递归处理括号内的内容
+            const processedArgs = smartReplaceVariables(argsContent);
+            result += `(${processedArgs})`;
+            
+            // 更新 i 到右括号的位置之后，并继续处理下一个字符
+            i = j + 1;
             continue;
           } else {
             // 独立变量
@@ -407,6 +580,11 @@ export function generate(ast: ASTRoot): string {
               // 🔥 关键修复：replaceVarsInForScope 已经处理了响应式变量的 .value 解包
               // 不需要再次应用替换规则，直接使用其返回值
               handlerCode = replaceVarsInForScope(String(val), itemVar, indexVar);
+              
+              // 🔥 调试日志：输出 handlerCode
+              console.log('[Compile] 事件处理器原始值:', val);
+              console.log('[Compile] 事件处理器 itemVar:', itemVar, 'indexVar:', indexVar);
+              console.log('[Compile] 事件处理器处理后:', handlerCode);
             } else {
               // 🔥 同样修复：只替换独立的变量，不替换属性访问链
               // 使用负向前瞻 (?!\.) 排除后面跟着点号的情况
@@ -416,6 +594,10 @@ export function generate(ast: ASTRoot): string {
                 }
                 return `ctx.${varName}.value`;
               });
+            
+              // 🔥 调试日志：输出 handlerCode
+              console.log('[Compile] 事件处理器原始值:', val);
+              console.log('[Compile] 事件处理器处理后:', handlerCode);
             }
             entries.push(`${JSON.stringify(eventName)}: () => { ${handlerCode} }`);
           }
