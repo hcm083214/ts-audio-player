@@ -228,7 +228,7 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
 }
 
 /**
- * 设置元素属性 - 与 mount.ts 保持一致
+ * 设置元素属性 - 与 mount.ts 保持一致，参照 Vue 3 源码处理 SVG 命名空间
  */
 function setElementProps(el: HTMLElement | SVGElement, key: string, value: any, prevValue?: any) {
   if (key.startsWith('on')) {
@@ -253,11 +253,31 @@ function setElementProps(el: HTMLElement | SVGElement, key: string, value: any, 
     // 处理 DOM 属性 (如 value, checked 等)
     (el as any)[key] = value;
   } else {
-    // 处理普通 HTML 属性
-    if (value == null || value === false) {
-      el.removeAttribute(key);
+    // 🔥 关键修复：参照 Vue 3 源码，处理 SVG 命名空间属性
+    // xlink:href 等属性必须使用 setAttributeNS
+    if (el instanceof SVGElement && key.includes(':')) {
+      const [prefix, localName] = key.split(':');
+      
+      if (prefix === 'xlink') {
+        // xlink:href 需要使用 xlink 命名空间
+        el.setAttributeNS('http://www.w3.org/1999/xlink', localName, String(value ?? ''));
+      } else if (prefix === 'xml') {
+        // xml 属性使用 xml 命名空间
+        el.setAttributeNS('http://www.w3.org/XML/1998/namespace', localName, String(value ?? ''));
+      } else if (prefix === 'xmlns') {
+        // xmlns 属性使用 xmlns 命名空间
+        el.setAttributeNS('http://www.w3.org/2000/xmlns/', localName, String(value ?? ''));
+      } else {
+        // 其他命名空间属性
+        el.setAttribute(key, String(value ?? ''));
+      }
     } else {
-      el.setAttribute(key, String(value));
+      // 处理普通 HTML 属性
+      if (value == null || value === false) {
+        el.removeAttribute(key);
+      } else {
+        el.setAttribute(key, String(value));
+      }
     }
   }
 }

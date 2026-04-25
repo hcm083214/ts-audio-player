@@ -1,7 +1,7 @@
 import { h, compileComponent, ref, computed, onMounted, onUnmounted } from '../../core'
 
 const BannerComponent = {
-  setup(props: { playlists: any }) {
+  setup(props: Record<string, any>) {
 
     // 当前激活的轮播图索引
     const activeIndex = ref(0)
@@ -70,7 +70,7 @@ const BannerComponent = {
     function startAutoPlay() {
       if (timer) clearInterval(timer)
       timer = setInterval(() => {
-        // next()
+        next()
       }, 3000) // 3 秒切换一次
     }
     
