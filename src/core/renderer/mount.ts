@@ -94,6 +94,20 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       }
       
       if (subTree) {
+        // 调试日志：输出 subTree 的结构
+        console.log('[Mount] subTree 结构:', subTree);
+        console.log('[Mount] subTree 是否数组:', Array.isArray(subTree));
+        if (Array.isArray(subTree)) {
+          console.log('[Mount] subTree 长度:', subTree.length);
+          subTree.forEach((child, index) => {
+            console.log(`[Mount] subTree[${index}]:`, child);
+            console.log(`[Mount] subTree[${index}] 是否数组:`, Array.isArray(child));
+            if (Array.isArray(child)) {
+              console.log(`[Mount] subTree[${index}] 长度:`, child.length);
+            }
+          });
+        }
+        
         // 清空容器
         container.innerHTML = ''
         
@@ -101,7 +115,16 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
         if (Array.isArray(subTree)) {
           subTree.forEach((child, index) => {
             if (child) {
-              mount(child, container, anchor)
+              // 递归处理嵌套数组（例如 v-for 生成的数组）
+              if (Array.isArray(child)) {
+                child.forEach((nestedChild) => {
+                  if (nestedChild) {
+                    mount(nestedChild, container, anchor)
+                  }
+                })
+              } else {
+                mount(child, container, anchor)
+              }
             }
           })
         } else {
@@ -126,7 +149,16 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       if (Array.isArray(subTree)) {
         subTree.forEach((child) => {
           if (child) {
-            mount(child, container, anchor)
+            // 递归处理嵌套数组（例如 v-for 生成的数组）
+            if (Array.isArray(child)) {
+              child.forEach((nestedChild) => {
+                if (nestedChild) {
+                  mount(nestedChild, container, anchor)
+                }
+              })
+            } else {
+              mount(child, container, anchor)
+            }
           }
         })
       } else {

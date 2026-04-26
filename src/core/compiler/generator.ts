@@ -537,7 +537,12 @@ export function generate(ast: ASTRoot): string {
               entries.push(`${JSON.stringify(propName)}: ${expr}`);
             } else if (isCustomComponent) {
               // 自定义组件：需要访问 .value 以解包 Ref
-              entries.push(`${JSON.stringify(propName)}: ctx.${expr}?.value ?? ctx.${expr}`);
+              // 但如果在 v-for 作用域内且是作用域变量，不添加 ctx.
+              if (itemVar && (expr === itemVar || (indexVar && expr === indexVar))) {
+                entries.push(`${JSON.stringify(propName)}: ${expr}`);
+              } else {
+                entries.push(`${JSON.stringify(propName)}: ctx.${expr}?.value ?? ctx.${expr}`);
+              }
             } else {
               // 普通 HTML 元素：直接使用 ctx.xxx
               entries.push(`${JSON.stringify(propName)}: ctx.${expr}`);
@@ -750,6 +755,10 @@ export function generate(ast: ASTRoot): string {
         const sourceAccess = `(ctx.${sourceExpr}?.value ?? ctx.${sourceExpr})`;
         
         code = `${sourceAccess}.map((${mapParams}) => ${scopedHCode})`;
+        
+        // 🔥 调试日志：输出 v-for 编译结果
+        console.log(`[Generate] v-for 编译: sourceExpr=${sourceExpr}, itemVar=${itemVar}, indexVar=${indexVar}`);
+        console.log(`[Generate] v-for 编译结果: ${code}`);
         
       } else {
         console.warn('[Generate] v-for 表达式解析失败:', forExpression);

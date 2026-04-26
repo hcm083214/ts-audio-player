@@ -86,7 +86,7 @@ const PlaylistComponent = {
           v-for="playlist in topPlaylists"
           :key="playlist.id"
           :playlist="playlist"
-        />
+        ></PlaylistCardComponent>
       </div>
     </div>
   `
