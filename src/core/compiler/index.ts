@@ -44,7 +44,7 @@ export function compile(template: string): CompiledRenderFn {
   
   const code = generate(ast);
   
-  // 调试日志：输出完整生成的代码
+  // 调试日志：输出完整生成的代码（所有组件）
   console.log('[Compile] 生成的代码:', code);
   
   // 将 normalizeClass 作为第三个参数传递
