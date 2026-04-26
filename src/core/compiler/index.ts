@@ -94,6 +94,36 @@ export function createRuntimeCompiler(template: string, components?: Record<stri
   };
 }
 
+/**
+ * 编译器代码生成模块统一出口
+ * 
+ * 参照 Vue 3 源码及《Vue.js 设计与实现》的模块化设计
+ */
+
+// 主生成器入口
+export { generate } from './generator'
+
+// 变量解析工具
+export { 
+  processInterpolationExpr,
+  replaceVarsInForScope,
+  smartReplaceVariables
+} from './variableResolver'
+
+// 属性生成工具
+export {
+  generatePropsEntries,
+  generateClassEntry,
+  generateBaseHCall
+} from './propsGenerator'
+
+// 指令处理工具
+export {
+  processIfElse,
+  generateVForCode,
+  generateVIfCode
+} from './directiveHandler'
+
 // 导出辅助函数供其他模块使用
 export { normalizeClass } from './normalizeClass'
 export type { ASTElement, ASTInterpolation, ASTText, ASTRoot, ASTNode } from './parser'
