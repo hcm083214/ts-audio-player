@@ -14,7 +14,7 @@ console.log('[Main] app 容器:', app)
 // 导入模块完成
 console.log('[Main] 模块导入完成')
 
-// 配置路由（使用 core/compiler/router.ts 中的路由系统）
+// 配置路由（使用 core/router 模块化路由系统）
 const routes = [
   {
     path: '/',
@@ -25,7 +25,7 @@ const routes = [
 
 console.log('[Main] 路由配置完成，routes:', routes)
 
-// 创建路由实例（使用 core/compiler/router.ts 中的 createRouter）
+// 创建路由实例（使用 core/router 中的 createRouter）
 console.log('[Main] 开始创建路由实例...')
 const router = createRouter(routes, 'hash')
 console.log('[Main] 路由实例创建完成')

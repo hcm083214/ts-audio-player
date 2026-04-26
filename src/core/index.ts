@@ -27,8 +27,8 @@ export { Fragment } from './renderer/types'
 export { compile, createRuntimeCompiler, compileComponent, normalizeClass } from './compiler/index'
 export { interpolate, evaluateExpression } from './compiler/interpolate'
 
-// 路由系统
-export { createRouter,useRoute,useRouter } from './compiler/router'
+// 路由系统（新模块化架构）
+export { createRouter, useRoute, useRouter } from './router/index'
 
 // 向后兼容：导出 buildVNode（如果存在）
 // export { buildVNode } from './renderer/buildVNode'
