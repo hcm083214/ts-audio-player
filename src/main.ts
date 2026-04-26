@@ -20,10 +20,7 @@ const routes = [
     path: '/',
     component: HomePage
   },
-  {
-    path: '/test',
-    component: TestPage
-  }
+  
 ]
 
 console.log('[Main] 路由配置完成，routes:', routes)

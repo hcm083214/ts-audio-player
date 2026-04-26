@@ -70,7 +70,7 @@ const BannerComponent = {
     function startAutoPlay() {
       if (timer) clearInterval(timer)
       timer = setInterval(() => {
-        // next()
+        next()
       }, 3000) // 3 秒切换一次
     }
     

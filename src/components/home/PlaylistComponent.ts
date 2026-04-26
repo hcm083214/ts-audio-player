@@ -24,7 +24,6 @@ const PlaylistComponent = {
         playlistsLoading.value = true
         const res = await getTopPlaylist(cat, 'hot', 8)
         topPlaylists.value = res.playlists || []
-        console.log("🚀 ~ loadTopPlaylists ~ topPlaylists.value:", topPlaylists.value)
       } catch (error) {
         console.error('Failed to load top playlists:', error)
       } finally {

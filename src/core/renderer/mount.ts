@@ -60,29 +60,13 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       // 调用 render 函数获取子 VNode
       let subTree: VNode | VNode[] | null
       try {
-        console.log('[Mount] 准备调用 renderFn');
-        console.log('[Mount] renderFn.length:', renderFn.length);
-        console.log('[Mount] componentDef.components:', (vnode.type as any).components);
-        console.log('[Mount] ctx keys:', Object.keys(ctx));
-        console.log('[Mount] ctx 是否为空对象:', Object.keys(ctx).length === 0);
-        
-        // 🔥 关键调试：打印 renderFn 的源码前500字符
-        const fnStr = renderFn.toString();
-        console.log('[Mount] renderFn 源码片段:', fnStr.substring(0, 500));
-        
         // 编译后的 render 函数签名：(h, ctx, normalizeClass) => VNode
         if (renderFn.length === 3) {
-          console.log('[Mount] 调用 renderFn(h, ctx, normalizeClass)');
-          console.log('[Mount] h 参数:', h);
-          console.log('[Mount] ctx 参数:', ctx);
-          console.log('[Mount] normalizeClass 参数:', normalizeClass);
           subTree = renderFn(h, ctx, normalizeClass) as VNode | VNode[]
         } else if (renderFn.length === 2) {
-          console.log('[Mount] 调用 renderFn(h, ctx)');
           // 运行时编译器返回的包装函数：(props, setupState) => VNode
           subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
         } else {
-          console.log('[Mount] 调用 renderFn(props, setupResult), length:', renderFn.length);
           // 其他情况，尝试直接调用
           subTree = renderFn(vnode.props || {}, setupResult) as VNode | VNode[]
         }
@@ -94,42 +78,64 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       }
       
       if (subTree) {
-        // 调试日志：输出 subTree 的结构
-        console.log('[Mount] subTree 结构:', subTree);
-        console.log('[Mount] subTree 是否数组:', Array.isArray(subTree));
-        if (Array.isArray(subTree)) {
-          console.log('[Mount] subTree 长度:', subTree.length);
-          subTree.forEach((child, index) => {
-            console.log(`[Mount] subTree[${index}]:`, child);
-            console.log(`[Mount] subTree[${index}] 是否数组:`, Array.isArray(child));
-            if (Array.isArray(child)) {
-              console.log(`[Mount] subTree[${index}] 长度:`, child.length);
+        // 🔥 关键修复：为组件创建独立的容器，避免多个组件实例共享同一个 container 导致互相覆盖
+        // 如果 vnode.el 不存在，说明是首次挂载
+        if (!vnode.el) {
+          // 创建一个包装元素作为组件的根容器
+          const wrapper = document.createElement('div');
+          // 将包装元素添加到父容器中
+          if (anchor) {
+            container.insertBefore(wrapper, anchor);
+          } else {
+            container.appendChild(wrapper);
+          }
+          // 保存引用
+          vnode.el = wrapper;
+          
+          // 使用包装元素作为组件内容的 container
+          const componentContainer = wrapper;
+          componentContainer.innerHTML = '';
+          
+          // 挂载 subTree 到组件自己的容器中
+          const mountSubTree = (tree: VNode | VNode[] | string | null | undefined) => {
+            if (tree === null || tree === undefined) {
+              return;
             }
-          });
-        }
-        
-        // 清空容器
-        container.innerHTML = ''
-        
-        // 如果 subTree 是数组，遍历挂载每个元素
-        if (Array.isArray(subTree)) {
-          subTree.forEach((child, index) => {
-            if (child) {
-              // 递归处理嵌套数组（例如 v-for 生成的数组）
-              if (Array.isArray(child)) {
-                child.forEach((nestedChild) => {
-                  if (nestedChild) {
-                    mount(nestedChild, container, anchor)
-                  }
-                })
-              } else {
-                mount(child, container, anchor)
-              }
+            
+            if (Array.isArray(tree)) {
+              tree.forEach(child => {
+                mountSubTree(child);
+              });
+            } else if (typeof tree === 'string') {
+              componentContainer.appendChild(document.createTextNode(tree));
+            } else {
+              mount(tree, componentContainer, null);
             }
-          })
+          };
+          
+          mountSubTree(subTree);
         } else {
-          // 单个 VNode，直接挂载
-          mount(subTree, container, anchor)
+          // 更新阶段：清空并重新挂载（简化实现，应该使用 patch）
+          const componentContainer = vnode.el as HTMLElement;
+          componentContainer.innerHTML = '';
+          
+          const mountSubTree = (tree: VNode | VNode[] | string | null | undefined) => {
+            if (tree === null || tree === undefined) {
+              return;
+            }
+            
+            if (Array.isArray(tree)) {
+              tree.forEach(child => {
+                mountSubTree(child);
+              });
+            } else if (typeof tree === 'string') {
+              componentContainer.appendChild(document.createTextNode(tree));
+            } else {
+              mount(tree, componentContainer, null);
+            }
+          };
+          
+          mountSubTree(subTree);
         }
       } 
     })
@@ -197,20 +203,30 @@ export function mount(vnode: VNode, container: HTMLElement | SVGElement, anchor:
       if (typeof vnode.children === 'string') {
         el.textContent = vnode.children;
       } else if (Array.isArray(vnode.children)) {
-        vnode.children.forEach((child: VNode | string) => {
-          // 过滤掉 null 和 undefined（来自 v-if 返回的 null）
-          if (child === null || child === undefined) {
-            return;
-          }
-          
-          // 如果子节点是字符串，直接创建文本节点
-          if (typeof child === 'string') {
-            el.appendChild(document.createTextNode(child));
-          } else {
+        // 🔥 关键修复：定义一个递归函数来扁平化并挂载 children
+        const mountChildren = (children: Array<VNode | string | null | undefined>) => {
+          children.forEach((child: VNode | string | null | undefined) => {
+            // 过滤掉 null 和 undefined（来自 v-if 返回的 null）
+            if (child === null || child === undefined) {
+              return;
+            }
+            
+            // 如果子节点是数组，递归扁平化（处理 v-for 生成的嵌套数组）
+            if (Array.isArray(child)) {
+              mountChildren(child);
+            } 
+            // 如果子节点是字符串，直接创建文本节点
+            else if (typeof child === 'string') {
+              el.appendChild(document.createTextNode(child));
+            } 
             // 否则递归挂载 VNode
-            mount(child, el);
-          }
-        });
+            else {
+              mount(child as VNode, el);
+            }
+          });
+        };
+        
+        mountChildren(vnode.children);
       }
     }
     

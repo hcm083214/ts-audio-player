@@ -98,17 +98,26 @@ function renderComponent(component: Component, props: VNodeProps, container: HTM
       // 清空容器并重新挂载
       container.innerHTML = ''
       
-      // 如果 subTree 是数组，遍历挂载每个元素
-      if (Array.isArray(subTree)) {
-        subTree.forEach(child => {
-          if (child) {
-            mount(child, container)
-          }
-        })
-      } else {
-        // 单个 VNode，直接挂载
-        mount(subTree, container)
-      }
+      // 🔥 关键修复：定义递归函数来扁平化并挂载 subTree
+      const mountSubTree = (tree: VNode | VNode[] | string | null | undefined) => {
+        if (tree === null || tree === undefined) {
+          return;
+        }
+        
+        if (Array.isArray(tree)) {
+          // 递归处理数组中的每个元素
+          tree.forEach(child => {
+            mountSubTree(child);
+          });
+        } else if (typeof tree === 'string') {
+          container.appendChild(document.createTextNode(tree));
+        } else {
+          // 单个 VNode，直接挂载
+          mount(tree, container);
+        }
+      };
+      
+      mountSubTree(subTree);
     }
   })
   
@@ -205,25 +214,52 @@ export function patch(n1: VNode | null, n2: VNode | null, container: HTMLElement
     else if (Array.isArray(n2.children)) {
       const c1 = (n1.children as VNode[]) || [];
       
-      // 子节点数量不同，重新渲染
-      if (c1.length !== n2.children.length) {
-        n1.el!.innerHTML = '';
-        n2.children.forEach((child: VNode) => {
-          // 过滤掉 null 和 undefined（来自 v-if 返回的 null）
+      // 🔥 关键修复：定义递归函数来扁平化 children
+      const flattenChildren = (children: Array<VNode | string | null | undefined>): Array<VNode | string> => {
+        const result: Array<VNode | string> = [];
+        children.forEach(child => {
           if (child === null || child === undefined) {
             return;
           }
-          mount(child, n1.el!);
+          if (Array.isArray(child)) {
+            // 递归扁平化嵌套数组
+            result.push(...flattenChildren(child));
+          } else {
+            result.push(child);
+          }
+        });
+        return result;
+      };
+      
+      const flattenedN2Children = flattenChildren(n2.children);
+      const flattenedC1 = flattenChildren(c1);
+      
+      // 子节点数量不同，重新渲染
+      if (flattenedC1.length !== flattenedN2Children.length) {
+        n1.el!.innerHTML = '';
+        flattenedN2Children.forEach((child: VNode | string) => {
+          if (typeof child === 'string') {
+            n1.el!.appendChild(document.createTextNode(child));
+          } else {
+            mount(child, n1.el!);
+          }
         });
       } 
       // 子节点数量相同，逐个对比更新
       else {
-        n2.children.forEach((child: VNode, i: number) => {
-          // 过滤掉 null 和 undefined
-          if (child === null || child === undefined) {
-            return;
+        flattenedN2Children.forEach((child: VNode | string, i: number) => {
+          if (typeof child === 'string') {
+            // 文本节点直接更新
+            if (flattenedC1[i] !== child) {
+              const oldChild = n1.el!.childNodes[i];
+              if (oldChild) {
+                oldChild.textContent = child;
+              }
+            }
+          } else {
+            // VNode 需要 patch
+            patch(flattenedC1[i] as VNode, child, n1.el! as HTMLElement);
           }
-          patch(c1[i], child, n1.el! as HTMLElement);
         });
       }
     }
